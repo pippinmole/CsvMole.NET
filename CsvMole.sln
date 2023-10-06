@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CsvMole.SourceGenerators", "CsvMole.SourceGenerators\CsvMole.SourceGenerators.csproj", "{E19C5A3C-9F48-476D-BDB6-E09458237A9F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CsvMole.Example", "CsvMole.Example\CsvMole.Example.csproj", "{C4A84689-677F-4586-B05A-D77C08E58380}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CsvMole.Abstractions", "CsvMole.Abstractions\CsvMole.Abstractions.csproj", "{196F1DEE-A696-49E7-84C4-DD765892B423}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E19C5A3C-9F48-476D-BDB6-E09458237A9F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E19C5A3C-9F48-476D-BDB6-E09458237A9F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E19C5A3C-9F48-476D-BDB6-E09458237A9F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E19C5A3C-9F48-476D-BDB6-E09458237A9F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4A84689-677F-4586-B05A-D77C08E58380}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4A84689-677F-4586-B05A-D77C08E58380}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4A84689-677F-4586-B05A-D77C08E58380}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4A84689-677F-4586-B05A-D77C08E58380}.Release|Any CPU.Build.0 = Release|Any CPU
+		{196F1DEE-A696-49E7-84C4-DD765892B423}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{196F1DEE-A696-49E7-84C4-DD765892B423}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{196F1DEE-A696-49E7-84C4-DD765892B423}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{196F1DEE-A696-49E7-84C4-DD765892B423}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
