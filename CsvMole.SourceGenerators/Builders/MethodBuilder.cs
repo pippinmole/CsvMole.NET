@@ -11,7 +11,7 @@ internal sealed class MethodBuilder(IndentedTextWriter indentedTextWriter,
     public void Build()
     {
         indentedTextWriter.WriteLine();
-        indentedTextWriter.WriteLine($"public partial {partialDeclaration.ReturnType} {ParserMethodName}({partialDeclaration.ParameterType} stringReader)");
+        indentedTextWriter.WriteLine($"public static partial {partialDeclaration.ReturnType} {ParserMethodName}({partialDeclaration.ParameterType} stringReader)");
         indentedTextWriter.WriteLine("{");
         indentedTextWriter.Indent++;
 
