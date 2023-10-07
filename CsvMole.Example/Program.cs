@@ -1,10 +1,17 @@
-﻿using CsvMole.Abstractions.Attributes;
+﻿using CsvMole.Abstractions.Options;
 using CsvMole.Example;
 
-var stringReader = new StringReader("Id\n1");
-var results = CustomParser.Parse(stringReader);
+// Open a file called test.csv
+var text = await File.ReadAllTextAsync("test.csv");
+using var stringReader = new StringReader(text);
+
+var options = new CsvOptions { HasHeader = true };
+var results = CustomParser.Parse(stringReader, options);
 
 foreach ( var result in results )
 {
-    Console.WriteLine(result);
+    Console.WriteLine(result.Date);
 }
+
+
+

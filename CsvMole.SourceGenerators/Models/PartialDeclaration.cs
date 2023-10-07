@@ -10,10 +10,15 @@ internal record PartialDeclaration(
 
 internal record MethodDeclaration(
     string MethodName,
-    string ParameterType,
-    string ReturnType,
+    string OuterReturnType,
     string InnerReturnType,
+    EquatableArray<ParameterDeclaration> Parameters,
     EquatableArray<PropertyDeclaration> Properties
+);
+
+internal record ParameterDeclaration(
+    string Name,
+    string Type
 );
 
 internal record PropertyDeclaration(

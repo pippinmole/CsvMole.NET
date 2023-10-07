@@ -22,19 +22,14 @@ internal sealed class CsvParserIncrementalGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(classDeclarations, static (spc, source) => Execute(source, spc));
     }
 
-    private static PartialDeclaration GetSemanticTargetForGeneration(GeneratorAttributeSyntaxContext context,
+    private static PartialDeclaration GetSemanticTargetForGeneration(
+        GeneratorAttributeSyntaxContext context,
         CancellationToken token)
     {
         if ( context.TargetSymbol is not INamedTypeSymbol namedTypeSymbol )
             throw new Exception("TargetSymbol is not INamedTypeSymbol");
         
-        var methodModels = namedTypeSymbol.GetMethodDeclarations();
-
-        return new PartialDeclaration(
-            namedTypeSymbol.ContainingNamespace.ToDisplayString(),
-            namedTypeSymbol.Name,
-            methodModels
-        );
+        return namedTypeSymbol.GetPartialDeclaration();
     }
 
     public static void Execute(PartialDeclaration partialDeclaration, SourceProductionContext context)
