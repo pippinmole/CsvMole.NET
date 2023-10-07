@@ -24,8 +24,11 @@ internal sealed class PartialBuilder(CsvParserPartialDeclaration partialDeclarat
         indentedWriter.Indent++;
 
         // Create method signature
-        var builder = new MethodBuilder(indentedWriter, partialDeclaration);
-        builder.Build();
+        foreach(var methodDeclaration in partialDeclaration.Methods)
+        {
+            var builder = new MethodBuilder(indentedWriter, methodDeclaration);
+            builder.Build();
+        }
 
         indentedWriter.Indent--; // Decrease the indentation
         indentedWriter.WriteLine("}");

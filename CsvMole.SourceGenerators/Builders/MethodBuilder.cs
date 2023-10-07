@@ -4,22 +4,14 @@ using System.Text;
 namespace CsvMole.Source.Builders;
 
 internal sealed class MethodBuilder(IndentedTextWriter indentedTextWriter,
-    CsvParserPartialDeclaration partialDeclaration)
+    CsvParserMethodDeclaration partialDeclaration)
 {
     private const string ParserMethodName = "Parse";
 
     public void Build()
     {
-        foreach ( var method in partialDeclaration.Methods )
-        {
-            BuildPartial(method);
-        }
-    }
-
-    private void BuildPartial(CsvParserMethodDeclaration methodDeclaration)
-    {
         indentedTextWriter.WriteLine();
-        indentedTextWriter.WriteLine($"public partial {methodDeclaration.ReturnType} {ParserMethodName}({methodDeclaration.ParameterType} stringReader)");
+        indentedTextWriter.WriteLine($"public partial {partialDeclaration.ReturnType} {ParserMethodName}({partialDeclaration.ParameterType} stringReader)");
         indentedTextWriter.WriteLine("{");
         indentedTextWriter.Indent++;
 
@@ -28,18 +20,17 @@ internal sealed class MethodBuilder(IndentedTextWriter indentedTextWriter,
         indentedTextWriter.WriteLine("{");
         indentedTextWriter.Indent++;
         
-        indentedTextWriter.WriteLine($"var model = new {methodDeclaration.InnerReturnType}();");
+        indentedTextWriter.WriteLine($"var model = new {partialDeclaration.InnerReturnType}();");
         
         // Split line into values
         indentedTextWriter.WriteLine("var values = line.Split(',');");
         
         var i = 0;
-        foreach ( var property in methodDeclaration.Properties )
+        foreach ( var property in partialDeclaration.Properties )
         {
             indentedTextWriter.WriteLine($"model.{property.Name} = values[{i}];");
             i++;
         }
-
         
         indentedTextWriter.WriteLine("yield return model;");
         
@@ -48,6 +39,6 @@ internal sealed class MethodBuilder(IndentedTextWriter indentedTextWriter,
         indentedTextWriter.Indent--;
         
         // Close while loop
-        indentedTextWriter.WriteLine("}");
+        indentedTextWriter.WriteLine("}");    
     }
 }
