@@ -1,6 +1,6 @@
 ﻿namespace CsvMole.Abstractions.Attributes;
 
-[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, Inherited = false)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
 public class CsvOrder : Attribute
 {
     public int Order { get; }

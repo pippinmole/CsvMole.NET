@@ -1,83 +1,59 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System.Collections.Immutable;
+using System.Text;
+using CsvMole.Source.Builders;
+using CsvMole.Source.External;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
 
 namespace CsvMole.Source;
 
 [Generator]
-internal sealed class CsvParserSourceGenerator : ISourceGenerator
+internal sealed class CsvParserIncrementalGenerator : IIncrementalGenerator
 {
-    private const string CsvParserName = "CsvParser";
-
-    public void Initialize(GeneratorInitializationContext context)
-        => context.RegisterForSyntaxNotifications(() => new CsvParserReceiver());
-
-    public void Execute(GeneratorExecutionContext context)
+    void IIncrementalGenerator.Initialize(IncrementalGeneratorInitializationContext context)
     {
-        if ( context.SyntaxContextReceiver is CsvParserReceiver receiver )
-        {
-            var results = CsvParserGenerator.GenerateMappings(receiver, context.Compilation, context.AnalyzerConfigOptions);
+        var classDeclarations = context.SyntaxProvider.ForAttributeWithMetadataName(
+            /* the attribute you want to filter by */
+            "CsvParserAttribute",
+            /* filter by nodes you want */
+            static (_, _) => true,
+            /* turn the attribute and node into a model containing what you need to generate source code */
+            GetSemanticTargetForGeneration);
 
-            foreach ( var (diagnostics, name, text) in results )
-            {
-                foreach ( var diagnostic in diagnostics )
-                {
-                    context.ReportDiagnostic(diagnostic);
-                }
-
-                if ( name is not null && text is not null )
-                {
-                    context.DiagnosticLog("CG001", "Source Generator", $"Creating class {name} with text {text}");
-                    context.AddSource(name, text);
-                }
-            }
-        }
-            
-        // context.DiagnosticLog("CG000", "Source Generator", "Source generator started");
-        //
-        // // Get semantic model
-        // var semanticModel = context.Compilation.GetSemanticModel(context.Compilation.SyntaxTrees.First());
-        //
-        // var classesWithAttribute = context.Compilation.SyntaxTrees
-        //     .SelectMany(st => st
-        //         .GetRoot()
-        //         .DescendantNodes()
-        //         .OfType<ClassDeclarationSyntax>()
-        //         .Where(r => r.AttributeLists
-        //                         .SelectMany(al => al.Attributes)
-        //                         .Any(a =>
-        //                             a.Name.ToString().EndsWith(CsvParserName) ||
-        //                             a.Name.ToString().EndsWith(CsvParserName+"Attribute")
-        //                         )
-        //                     && r.Modifiers.Any(m =>
-        //                         m.IsKind(SyntaxKind.PartialKeyword)))); // Ensure it's a partial class
-        //
-        // foreach ( var classWithAttribute in classesWithAttribute )
-        // {
-        //     var sourceBuilder = new StringBuilder();
-        //     
-        //     var classBuilder = new CsvParserBuilder(semanticModel, classWithAttribute);
-        //     sourceBuilder.Append(classBuilder.Build());
-        //     
-        //     // Log all sourcebuilder text
-        //     // context.DiagnosticLog("CG001", "Source Generator", sourceBuilder.ToString().ReplaceLineEndings(string.Empty));
-        //
-        //     // foreach ( var line in sourceBuilder.ToString().Split("\n") )
-        //     //     context.DiagnosticLog("CG001", "Source Generator", line);
-        //     
-        //     // Log that we're creating this class
-        //     context.DiagnosticLog("CG001", "Source Generator", $"Creating class {classWithAttribute.Identifier.Text}.g.cs");
-        //     
-        //     context.AddSource($"{classWithAttribute.Identifier.Text}.g.cs", SourceText.From(sourceBuilder.ToString(), Encoding.UTF8));
-        // }
-        //     
-        // context.DiagnosticLog("CG001", "Source Generator", "Source generator finished");
+        context.RegisterSourceOutput(classDeclarations, static (spc, source) => Execute(source, spc));
     }
-}
 
-internal static class Extensions
-{
-    public static void DiagnosticLog(this GeneratorExecutionContext context, string id, string title, string message)
+    private static CsvParserModel GetSemanticTargetForGeneration(GeneratorAttributeSyntaxContext context,
+        CancellationToken token)
     {
-        var diagnosticDescriptor = new DiagnosticDescriptor(id, title, message, "Generator", DiagnosticSeverity.Warning, true);
-        context.ReportDiagnostic(Diagnostic.Create(diagnosticDescriptor, Location.None));
+        var methodDeclaration = (MethodDeclarationSyntax)context.TargetNode;
+        var classDeclaration = (ClassDeclarationSyntax)methodDeclaration.Parent!;
+
+        var methodName = methodDeclaration.Identifier.ValueText;
+        var className = classDeclaration.Identifier.ValueText;
+
+        var namespaceName = classDeclaration.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault()?.Name
+            .ToString() ?? throw new NullReferenceException("Please define a namespace for your class");
+
+        var parameterType = methodDeclaration.ParameterList.Parameters[0].Type!.ToString();
+        var returnType = methodDeclaration.ReturnType.ToString();
+        var innerReturnType = returnType.Replace("System.Collections.Generic.IEnumerable<", "").Replace(">", "");
+
+        var properties = methodDeclaration.ParameterList.Parameters[0].Type!.DescendantNodes()
+            .OfType<IdentifierNameSyntax>()
+            .Select(x => new CsvParserProperty(x.Identifier.ValueText, x.Identifier.ValueText)).ToImmutableArray()
+            .AsEquatableArray();
+
+        return new CsvParserModel(namespaceName, className, methodName, parameterType, returnType, innerReturnType,
+            properties);
+    }
+
+    public static void Execute(CsvParserModel model, SourceProductionContext context)
+    {
+        var builder = new CsvParserBuilder(model);
+        var result = builder.Build();
+
+        context.AddSource($"{model.ClassName}.g.cs", SourceText.From(result, Encoding.UTF8));
     }
 }

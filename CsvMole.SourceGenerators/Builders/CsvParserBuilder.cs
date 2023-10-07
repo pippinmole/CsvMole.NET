@@ -1,56 +1,42 @@
-﻿using System.Text;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+﻿using System.CodeDom.Compiler;
 
-namespace CsvMole.Source.Builders
+namespace CsvMole.Source.Builders;
+
+internal sealed class CsvParserBuilder(CsvParserModel model)
 {
-    internal sealed class CsvParserBuilder
+    public string Build()
     {
-        private readonly string? _namespaceName;
-        private readonly SemanticModel _semanticModel;
-        private readonly BaseTypeDeclarationSyntax _class;
+        using var writer = new StringWriter();
+        using var indentedWriter = new IndentedTextWriter(writer, "\t");
 
-        public CsvParserBuilder(SemanticModel semanticModel, BaseTypeDeclarationSyntax @class)
+        indentedWriter.WriteLine("using CsvMole.Example.Models;");
+        indentedWriter.WriteLine("using System.Linq;");
+
+        if ( !string.IsNullOrEmpty(model.Namespace) )
         {
-            _namespaceName = (@class.Parent as NamespaceDeclarationSyntax)?.Name.ToString()
-                             ?? (@class.Parent as FileScopedNamespaceDeclarationSyntax)?.Name.ToString();
-            _semanticModel = semanticModel;
-            _class = @class;
+            indentedWriter.WriteLine($"namespace {model.Namespace}");
+            indentedWriter.WriteLine("{");
+            indentedWriter.Indent++; // Increase the indentation
         }
 
-        public string Build()
+        indentedWriter.WriteLine($"public partial class {model.ClassName}");
+        indentedWriter.WriteLine("{");
+        indentedWriter.Indent++;
+
+
+        // Create method signature
+        var builder = new MethodBuilder(model);
+        indentedWriter.WriteLine(builder.Build());
+
+        indentedWriter.Indent--; // Decrease the indentation
+        indentedWriter.WriteLine("}");
+
+        if ( !string.IsNullOrEmpty(model.Namespace) )
         {
-            var sb = new StringBuilder();
-        
-            sb.AppendLine("using CsvMole.Example.Models;");
-            sb.AppendLine("using System.Linq;");
-
-            if ( !string.IsNullOrEmpty(_namespaceName) )
-            {
-                sb.AppendLine($"namespace {_namespaceName}");
-                sb.AppendLine("{");
-            }
-
-            sb.AppendLine($"     public partial class {_class.Identifier.Text}");
-            sb.AppendLine("      {");
-            
-            var methods = _class.DescendantNodes().OfType<MethodDeclarationSyntax>();
-
-            foreach ( var method in methods )
-            {
-                // Create method signature
-                var builder = new MethodBuilder(_semanticModel, method);
-                sb.Append(builder.Build());
-            }
-
-            sb.AppendLine("  }");
-
-            if ( !string.IsNullOrEmpty(_namespaceName) )
-            {
-                sb.AppendLine("}");
-            }
-
-            return sb.ToString();
+            indentedWriter.Indent--; // Decrease the indentation
+            indentedWriter.WriteLine("}");
         }
+
+        return writer.ToString();
     }
 }
