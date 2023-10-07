@@ -9,7 +9,6 @@ internal sealed class PartialBuilder(PartialDeclaration partialDeclaration)
         using var writer = new StringWriter();
         using var indentedWriter = new IndentedTextWriter(writer, "  ");
 
-        indentedWriter.WriteLine("using CsvMole.Example.Models;");
         indentedWriter.WriteLine("using System.Linq;");
         indentedWriter.WriteLine();
         
