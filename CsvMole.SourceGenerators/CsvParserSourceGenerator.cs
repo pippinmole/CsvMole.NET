@@ -2,7 +2,6 @@
 using System.Text;
 using CsvMole.Source.Builders;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 namespace CsvMole.Source;
