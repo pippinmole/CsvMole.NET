@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
+    <!-- 
+        Maybe add to: https://github.com/joelverhagen/NCsvPerf
+    -->
     <PropertyGroup>
         <EnablePackageValidation>true</EnablePackageValidation>
         <TargetFramework>netstandard2.0</TargetFramework>
