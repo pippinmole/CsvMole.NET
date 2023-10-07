@@ -2,7 +2,7 @@
 
 namespace CsvMole.Source.Builders;
 
-internal sealed class PartialBuilder(CsvParserPartialDeclaration partialDeclaration)
+internal sealed class PartialBuilder(PartialDeclaration partialDeclaration)
 {
     public string Build()
     {
@@ -11,7 +11,8 @@ internal sealed class PartialBuilder(CsvParserPartialDeclaration partialDeclarat
 
         indentedWriter.WriteLine("using CsvMole.Example.Models;");
         indentedWriter.WriteLine("using System.Linq;");
-
+        indentedWriter.WriteLine();
+        
         if ( !string.IsNullOrEmpty(partialDeclaration.Namespace) )
         {
             indentedWriter.WriteLine($"namespace {partialDeclaration.Namespace}");
@@ -19,7 +20,7 @@ internal sealed class PartialBuilder(CsvParserPartialDeclaration partialDeclarat
             indentedWriter.Indent++; // Increase the indentation
         }
 
-        indentedWriter.WriteLine($"public partial class {partialDeclaration.ClassName}");
+        indentedWriter.WriteLine($"public static partial class {partialDeclaration.ClassName}");
         indentedWriter.WriteLine("{");
         indentedWriter.Indent++;
 

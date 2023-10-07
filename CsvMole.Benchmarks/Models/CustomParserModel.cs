@@ -1,10 +1,9 @@
-﻿using System.ComponentModel;
-using CsvMole.Abstractions.Attributes;
+﻿using CsvMole.Abstractions.Attributes;
 using CsvMole.Example.Converters;
 
-namespace CsvMole.Example.Models;
+namespace CsvMole.Benchmarks.Models;
 
-public class CustomModel
+public class CustomParserModel
 {
     [CsvOrder(0)]
     public string Id { get; set; } = null!;
