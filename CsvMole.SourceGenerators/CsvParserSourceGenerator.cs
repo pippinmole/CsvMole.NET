@@ -11,49 +11,53 @@ namespace CsvMole.Source;
 [Generator]
 internal sealed class CsvParserIncrementalGenerator : IIncrementalGenerator
 {
-    void IIncrementalGenerator.Initialize(IncrementalGeneratorInitializationContext context)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var classDeclarations = context.SyntaxProvider.ForAttributeWithMetadataName(
             /* the attribute you want to filter by */
-            "CsvParserAttribute",
+            "CsvMole.Abstractions.Attributes.CsvParserAttribute",
             /* filter by nodes you want */
             static (_, _) => true,
             /* turn the attribute and node into a model containing what you need to generate source code */
             GetSemanticTargetForGeneration);
-
+        
         context.RegisterSourceOutput(classDeclarations, static (spc, source) => Execute(source, spc));
     }
 
-    private static CsvParserModel GetSemanticTargetForGeneration(GeneratorAttributeSyntaxContext context,
+    private static CsvParserPartialDeclaration GetSemanticTargetForGeneration(GeneratorAttributeSyntaxContext context,
         CancellationToken token)
     {
-        var methodDeclaration = (MethodDeclarationSyntax)context.TargetNode;
-        var classDeclaration = (ClassDeclarationSyntax)methodDeclaration.Parent!;
-
-        var methodName = methodDeclaration.Identifier.ValueText;
+        var classDeclaration = (ClassDeclarationSyntax)context.TargetNode;
+        
         var className = classDeclaration.Identifier.ValueText;
+        var namespaceName = classDeclaration.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().First().Name.ToString();
+        
+        var methodDeclarations = classDeclaration.DescendantNodes().OfType<MethodDeclarationSyntax>().ToImmutableArray();
+        var methodModels = new List<CsvParserMethodDeclaration>();
+        
+        foreach ( var method in methodDeclarations )
+        {
+            var methodName = method.Identifier.ValueText;
+            var parameterType = method.ParameterList.Parameters[0].Type!.ToString();
+            var returnType = method.ReturnType.ToString();
+            var innerReturnType = returnType.Replace("IEnumerable<", "").Replace(">", "");
 
-        var namespaceName = classDeclaration.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault()?.Name
-            .ToString() ?? throw new NullReferenceException("Please define a namespace for your class");
+            var properties = method.ParameterList.Parameters[0].Type!.DescendantNodes()
+                .OfType<IdentifierNameSyntax>()
+                .Select(x => new CsvParserProperty(x.Identifier.ValueText, x.Identifier.ValueText)).ToImmutableArray()
+                .AsEquatableArray(); 
+            
+            methodModels.Add(new CsvParserMethodDeclaration(methodName, parameterType, returnType, innerReturnType, properties));
+        }
 
-        var parameterType = methodDeclaration.ParameterList.Parameters[0].Type!.ToString();
-        var returnType = methodDeclaration.ReturnType.ToString();
-        var innerReturnType = returnType.Replace("System.Collections.Generic.IEnumerable<", "").Replace(">", "");
-
-        var properties = methodDeclaration.ParameterList.Parameters[0].Type!.DescendantNodes()
-            .OfType<IdentifierNameSyntax>()
-            .Select(x => new CsvParserProperty(x.Identifier.ValueText, x.Identifier.ValueText)).ToImmutableArray()
-            .AsEquatableArray();
-
-        return new CsvParserModel(namespaceName, className, methodName, parameterType, returnType, innerReturnType,
-            properties);
+        return new CsvParserPartialDeclaration(namespaceName, className, methodModels.ToImmutableArray());
     }
 
-    public static void Execute(CsvParserModel model, SourceProductionContext context)
+    public static void Execute(CsvParserPartialDeclaration partialDeclaration, SourceProductionContext context)
     {
-        var builder = new CsvParserBuilder(model);
+        var builder = new PartialBuilder(partialDeclaration);
         var result = builder.Build();
 
-        context.AddSource($"{model.ClassName}.g.cs", SourceText.From(result, Encoding.UTF8));
+        context.AddSource($"{partialDeclaration.ClassName}.g.cs", SourceText.From(result, Encoding.UTF8));
     }
 }

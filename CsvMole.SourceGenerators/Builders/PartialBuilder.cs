@@ -2,36 +2,35 @@
 
 namespace CsvMole.Source.Builders;
 
-internal sealed class CsvParserBuilder(CsvParserModel model)
+internal sealed class PartialBuilder(CsvParserPartialDeclaration partialDeclaration)
 {
     public string Build()
     {
         using var writer = new StringWriter();
-        using var indentedWriter = new IndentedTextWriter(writer, "\t");
+        using var indentedWriter = new IndentedTextWriter(writer, "  ");
 
         indentedWriter.WriteLine("using CsvMole.Example.Models;");
         indentedWriter.WriteLine("using System.Linq;");
 
-        if ( !string.IsNullOrEmpty(model.Namespace) )
+        if ( !string.IsNullOrEmpty(partialDeclaration.Namespace) )
         {
-            indentedWriter.WriteLine($"namespace {model.Namespace}");
+            indentedWriter.WriteLine($"namespace {partialDeclaration.Namespace}");
             indentedWriter.WriteLine("{");
             indentedWriter.Indent++; // Increase the indentation
         }
 
-        indentedWriter.WriteLine($"public partial class {model.ClassName}");
+        indentedWriter.WriteLine($"public partial class {partialDeclaration.ClassName}");
         indentedWriter.WriteLine("{");
         indentedWriter.Indent++;
 
-
         // Create method signature
-        var builder = new MethodBuilder(model);
-        indentedWriter.WriteLine(builder.Build());
+        var builder = new MethodBuilder(indentedWriter, partialDeclaration);
+        builder.Build();
 
         indentedWriter.Indent--; // Decrease the indentation
         indentedWriter.WriteLine("}");
 
-        if ( !string.IsNullOrEmpty(model.Namespace) )
+        if ( !string.IsNullOrEmpty(partialDeclaration.Namespace) )
         {
             indentedWriter.Indent--; // Decrease the indentation
             indentedWriter.WriteLine("}");

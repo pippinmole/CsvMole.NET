@@ -1,44 +1,53 @@
-﻿using System.Text;
+﻿using System.CodeDom.Compiler;
+using System.Text;
 
 namespace CsvMole.Source.Builders;
 
-internal sealed class MethodBuilder(CsvParserModel model)
+internal sealed class MethodBuilder(IndentedTextWriter indentedTextWriter,
+    CsvParserPartialDeclaration partialDeclaration)
 {
     private const string ParserMethodName = "Parse";
 
-    public string Build()
+    public void Build()
     {
-        var sb = new StringBuilder();
+        foreach ( var method in partialDeclaration.Methods )
+        {
+            BuildPartial(method);
+        }
+    }
 
-        sb.AppendLine($"         public partial {model.ReturnType} {ParserMethodName}({model.ParameterType} stringReader)");
-        sb.AppendLine("          {");
+    private void BuildPartial(CsvParserMethodDeclaration methodDeclaration)
+    {
+        indentedTextWriter.WriteLine();
+        indentedTextWriter.WriteLine($"public partial {methodDeclaration.ReturnType} {ParserMethodName}({methodDeclaration.ParameterType} stringReader)");
+        indentedTextWriter.WriteLine("{");
+        indentedTextWriter.Indent++;
 
         // Iterate each line of the StringBuilder
-        sb.AppendLine("while (stringReader.ReadLine() is { } line)");
-        sb.AppendLine("     {");
+        indentedTextWriter.WriteLine("while (stringReader.ReadLine() is { } line)");
+        indentedTextWriter.WriteLine("{");
+        indentedTextWriter.Indent++;
         
-        sb.AppendLine($"var model = new {model.InnerReturnType}();");
+        indentedTextWriter.WriteLine($"var model = new {methodDeclaration.InnerReturnType}();");
         
         // Split line into values
-        sb.AppendLine("var values = line.Split(',');");
+        indentedTextWriter.WriteLine("var values = line.Split(',');");
         
-        // sb.AppendLine("System.Console.WriteLine($\"Got {values.Length} values\");");
-
         var i = 0;
-        foreach ( var property in model.Properties )
+        foreach ( var property in methodDeclaration.Properties )
         {
-            sb.AppendLine($"model.{property.Name} = values[{i}];");
+            indentedTextWriter.WriteLine($"model.{property.Name} = values[{i}];");
             i++;
         }
 
-        sb.AppendLine("yield return model;");
         
-        sb.AppendLine("     }");
+        indentedTextWriter.WriteLine("yield return model;");
+        
+        indentedTextWriter.Indent--;
+        indentedTextWriter.WriteLine("}");
+        indentedTextWriter.Indent--;
         
         // Close while loop
-        sb.AppendLine("      }");
-        
-
-        return sb.ToString();
+        indentedTextWriter.WriteLine("}");
     }
 }

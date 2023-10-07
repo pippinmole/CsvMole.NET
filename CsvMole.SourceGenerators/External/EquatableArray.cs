@@ -26,7 +26,7 @@ internal static class EquatableArray
     public static EquatableArray<T> AsEquatableArray<T>(this ImmutableArray<T> array)
         where T : IEquatable<T>
     {
-        return new(array);
+        return new EquatableArray<T>(array);
     }
 }
 
