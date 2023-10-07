@@ -9,16 +9,29 @@ internal static class ModelBuilderExtensions
     {
         return classSymbol.GetMembers()
             .OfType<IMethodSymbol>()
-            .Where(x => x.DeclaredAccessibility == Accessibility.Public)
-            .Where(x => x.IsStatic)
+            .Where(static x => x.DeclaredAccessibility == Accessibility.Public)
+            .Where(static x => x.IsStatic)
             .Select(ToModel)
             .ToImmutableArray();
     }
-    
+
+    public static PartialDeclaration GetPartialDeclaration(this INamedTypeSymbol classSymbol)
+    {
+        var methodModels = classSymbol.GetMethodDeclarations();
+
+        return new PartialDeclaration(
+            classSymbol.ContainingNamespace.ToDisplayString(),
+            classSymbol.Name,
+            methodModels
+        );
+    }
+
     private static MethodDeclaration ToModel(IMethodSymbol methodSymbol)
     {
         // This should be StringReader. TODO: Check this
-        var parameterType = methodSymbol.Parameters[0].Type;
+        var parameters = methodSymbol.Parameters
+            .Select(x => new ParameterDeclaration(x.Name, x.Type.ToString()))
+            .ToImmutableArray();
 
         // Outer = IEnumerable<T>, Inner = T
         var (outer, inner) = ExtractIEnumerableGenericType(methodSymbol);
@@ -31,9 +44,9 @@ internal static class ModelBuilderExtensions
         
         return new MethodDeclaration(
             methodSymbol.Name,
-            parameterType.ToString(),
             outer.ToString(),
             inner.ToString(),
+            parameters,
             properties
         );
     }
@@ -60,15 +73,15 @@ internal static class ModelBuilderExtensions
         {
             var attributeType = attribute.AttributeClass?.ToDisplayString();
 
-            if ( attributeType == "CsvMole.Abstractions.Attributes.CsvConverter" )
-            {
-                var converterType = attribute.ConstructorArguments[0].Value?.ToString();
+            if ( attributeType != "CsvMole.Abstractions.Attributes.CsvConverter" )
+                continue;
+            
+            var converterType = attribute.ConstructorArguments[0].Value?.ToString();
 
-                if ( converterType is null )
-                    continue;
+            if ( converterType is null )
+                continue;
 
-                return new ConverterDeclaration(converterType);
-            }
+            return new ConverterDeclaration(converterType);
         }
 
         return null;

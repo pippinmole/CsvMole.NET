@@ -1,4 +1,6 @@
-﻿namespace CsvMole.SourceGenerators.Tests.Compilation;
+﻿using CsvMole.Abstractions.Options;
+
+namespace CsvMole.SourceGenerators.Tests.Compilation;
 
 public class TestModelCompilationTests
 {
@@ -9,8 +11,13 @@ public class TestModelCompilationTests
         const string text = "Id\n1";
         using var stringReader = new StringReader(text);
 
+        var options = new CsvOptions
+        {
+            HasHeader = true
+        };
+
         // Act
-        var result = CompilationParser.Parse(stringReader)
+        var result = CompilationParser.Parse(stringReader, options)
             .ToList();
 
         // Assert

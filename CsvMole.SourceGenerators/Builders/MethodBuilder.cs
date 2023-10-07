@@ -1,5 +1,6 @@
 ﻿using System.CodeDom.Compiler;
 using System.Collections.Immutable;
+using System.Reflection.Metadata;
 
 namespace CsvMole.Source.Builders;
 
@@ -8,7 +9,8 @@ internal sealed class MethodBuilder(IndentedTextWriter indentedTextWriter, Metho
     public void Build()
     {
         indentedTextWriter.WriteLine();
-        indentedTextWriter.WriteLine($"public static partial {methodDeclaration.ReturnType} {methodDeclaration.MethodName}({methodDeclaration.ParameterType} stringReader)");
+        indentedTextWriter.WriteLine(
+            $"public static partial {methodDeclaration.OuterReturnType} {methodDeclaration.MethodName}({BuildParameters(methodDeclaration.Parameters)})");
         indentedTextWriter.WriteLine("{");
         indentedTextWriter.Indent++;
 
@@ -16,23 +18,25 @@ internal sealed class MethodBuilder(IndentedTextWriter indentedTextWriter, Metho
         var converters = methodDeclaration.Properties
             .Select(x => x.Converter)
             .ToImmutableArray();
-        
+
         for ( var index = 0; index < converters.Length; index++ )
         {
             var converter = converters[index];
             InitializeConverter(converter, index);
         }
 
+        BuildSkipHeaderFromOptions(indentedTextWriter);
+        
         // Iterate each line of the StringBuilder
         indentedTextWriter.WriteLine("while (stringReader.ReadLine() is { } line)");
         indentedTextWriter.WriteLine("{");
         indentedTextWriter.Indent++;
-        
+
         indentedTextWriter.WriteLine($"var model = new {methodDeclaration.InnerReturnType}();");
-        
+
         // Split line into values
         indentedTextWriter.WriteLine("var values = line.Split(',');");
-        
+
         var i = 0;
         foreach ( var property in methodDeclaration.Properties )
         {
@@ -41,13 +45,31 @@ internal sealed class MethodBuilder(IndentedTextWriter indentedTextWriter, Metho
         }
 
         indentedTextWriter.WriteLine("yield return model;");
-        
+
         indentedTextWriter.Indent--;
         indentedTextWriter.WriteLine("}");
         indentedTextWriter.Indent--;
-        
+
         // Close while loop
         indentedTextWriter.WriteLine("}");
+    }
+
+    private static void BuildSkipHeaderFromOptions(IndentedTextWriter indentedTextWriter)
+    {
+        indentedTextWriter.WriteLine("if ( options?.HasHeader ?? false )");
+        indentedTextWriter.WriteLine("{");
+        indentedTextWriter.Indent++;
+        
+        indentedTextWriter.WriteLine("stringReader.ReadLine();");
+        
+        indentedTextWriter.Indent--;
+        indentedTextWriter.WriteLine("}");
+    }
+
+    private static string BuildParameters(ImmutableArray<ParameterDeclaration> parameterDeclarations)
+    {
+        var parameters = parameterDeclarations.Select(x => $"{x.Type} {x.Name}");
+        return string.Join(", ", parameters);
     }
 
     private void InitializeConverter(ConverterDeclaration? converter, int index)

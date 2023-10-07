@@ -12,7 +12,7 @@ public class ParserBenchmarks
 {
     private string _content = null!;
     
-    [Params(1, 100)]
+    [Params(1, 100, 1_000, 100_000)]
     public int N { get; set; }
     
     [GlobalSetup]
