@@ -1,5 +1,5 @@
 ﻿using CsvMole.Abstractions.Attributes;
-using CsvMole.Example.Converters;
+using CsvMole.Abstractions.Converters;
 
 namespace CsvMole.Benchmarks.Models;
 
@@ -9,6 +9,6 @@ public class CustomParserModel
     public string Id { get; set; } = null!;
 
     [CsvOrder(1)]
-    [CsvConverter(typeof(DateTimeCsvConverter))]
+    [CsvConverter(typeof(CsvDateTimeConverter))]
     public DateTime? Date { get; set; }
 }

@@ -1,5 +1,5 @@
-﻿using System.ComponentModel;
-using CsvMole.Abstractions.Attributes;
+﻿using CsvMole.Abstractions.Attributes;
+using CsvMole.Abstractions.Converters;
 using CsvMole.Abstractions.Options;
 
 namespace CsvMole.SourceGenerators.Tests.Converters;
@@ -14,8 +14,8 @@ public class ConverterModel
 {
     public string Id { get; set; } = null!;
     
-    [CsvConverter(typeof(DateTimeConverter))]
-    public DateTime Date { get; set; }
+    [CsvConverter(typeof(CsvDateTimeConverter))]
+    public DateTime? Date { get; set; }
 }
 
 public class ConverterTests

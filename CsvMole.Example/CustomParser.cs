@@ -7,5 +7,5 @@ namespace CsvMole.Example;
 [CsvParser]
 public static partial class CustomParser
 {
-    public static partial IEnumerable<CustomModel> Parse(StringReader stringReader, CsvOptions? options = null);
+    public static partial IEnumerable<CustomModel> Parse(StringReader stringReader, CsvOptions? options);
 }

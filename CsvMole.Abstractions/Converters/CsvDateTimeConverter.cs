@@ -1,8 +1,6 @@
-﻿using CsvMole.Abstractions.Converters;
+﻿namespace CsvMole.Abstractions.Converters;
 
-namespace CsvMole.Example.Converters;
-
-public class DateTimeCsvConverter : CsvConverterBase<DateTime?>
+public class CsvDateTimeConverter : CsvConverterBase<DateTime?>
 {
     public override DateTime? ConvertFromString(string value)
     {
@@ -16,6 +14,11 @@ public class DateTimeCsvConverter : CsvConverterBase<DateTime?>
 
     public override string ConvertToString(DateTime? value)
     {
-        return value.HasValue ? value.Value.ToString("yyyy-MM-dd") : string.Empty;
+        if ( value.HasValue )
+        {
+            return value.Value.ToString("yyyy-MM-dd");
+        }
+
+        return string.Empty;
     }
 }
