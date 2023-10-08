@@ -73,7 +73,8 @@ internal static class ModelBuilderExtensions
         {
             var attributeType = attribute.AttributeClass?.ToDisplayString();
 
-            if ( attributeType != "CsvMole.Abstractions.Attributes.CsvConverter" )
+            // TODO: use typeof(CsvConverterAttribute).FullName here
+            if ( attributeType != "CsvMole.Abstractions.Attributes.CsvConverterAttribute" )
                 continue;
             
             var converterType = attribute.ConstructorArguments[0].Value?.ToString();
