@@ -6,6 +6,6 @@ public abstract class CsvConverterBase<T>
 
     public virtual string ConvertToString(T? value)
     {
-        return value == null ? string.Empty : value.ToString();
+        return value == null ? string.Empty : value.ToString() ?? string.Empty;
     }
 }
