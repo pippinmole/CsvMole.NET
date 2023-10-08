@@ -29,9 +29,12 @@ jobs:
         run: dotnet build --no-restore
 
       - name: Test
-        run: dotnet test --no-build --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+        run: dotnet test --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.info ./CsvMole.SourceGenerators.Tests
         
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} # Not required for public repos
+          file: ./CsvMole.SourceGenerators.Tests/lcov.info # Path to the coverage file
+          flags: unittests # Optional, flags help differentiate coverage reports
+          name: codecov-umbrella # Optional, name of the upload
