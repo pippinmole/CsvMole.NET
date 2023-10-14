@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Jobs;
 using CsvHelper;
 using CsvMole.Benchmarks.Models;
 using nietras.SeparatedValues;
@@ -7,13 +8,15 @@ using Sylvan.Data;
 
 namespace CsvMole.Benchmarks;
 
+[SimpleJob(RuntimeMoniker.Net80)]
+[SimpleJob(RuntimeMoniker.Net70)]
 [MemoryDiagnoser(false)]
 public class ParserBenchmarks
 {
     private string _content = null!;
     private string _contentFastPath = null!;
     
-    [Params(1, 100, 1_000, 100_000)]
+    [Params(1, 100, 1_000)] //, 100_000
     public int N { get; set; }
     
     [GlobalSetup]

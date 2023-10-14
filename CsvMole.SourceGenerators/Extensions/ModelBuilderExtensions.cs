@@ -26,6 +26,16 @@ internal static class ModelBuilderExtensions
         );
     }
 
+    private static DelimiterAttributeDeclaration? GetDelimiter(ISymbol classModelSymbol)
+    {
+        var attribute = GetAttributeFrom(classModelSymbol, "CsvMole.Abstractions.Attributes.CsvDelimiterAttribute");
+        if ( attribute is null )
+            return null;
+
+        var delimiterCharacter = attribute.ConstructorArguments[0].Value?.ToString();
+        return delimiterCharacter is null ? null : new DelimiterAttributeDeclaration(delimiterCharacter);
+    }
+    
     private static MethodDeclaration ToModel(IMethodSymbol methodSymbol)
     {
         // This should be StringReader. TODO: Check this
@@ -41,11 +51,13 @@ internal static class ModelBuilderExtensions
 
         // Get the properties from the model which the Csv Parser will return
         var properties = GetPropertiesFromClass(inner);
+        var delimiter = GetDelimiter(inner);
         
         return new MethodDeclaration(
             methodSymbol.Name,
             outer.ToString(),
             inner.ToString(),
+            delimiter,
             parameters,
             properties
         );
@@ -64,28 +76,29 @@ internal static class ModelBuilderExtensions
         var genericTypeSymbol = namedTypeSymbol.TypeArguments[0];
         return (returnType, genericTypeSymbol);
     }
-    
-    private static ConverterDeclaration? GetConverterAttributeFrom(IPropertySymbol propertySymbol)
+
+    private static AttributeData? GetAttributeFrom(ISymbol symbol, string fullName)
     {
-        var attributes = propertySymbol.GetAttributes();
-        
+        var attributes = symbol.GetAttributes();
+
         foreach ( var attribute in attributes )
         {
-            var attributeType = attribute.AttributeClass?.ToDisplayString();
-
             // TODO: use typeof(CsvConverterAttribute).FullName here
-            if ( attributeType != "CsvMole.Abstractions.Attributes.CsvConverterAttribute" )
-                continue;
-            
-            var converterType = attribute.ConstructorArguments[0].Value?.ToString();
-
-            if ( converterType is null )
-                continue;
-
-            return new ConverterDeclaration(converterType);
+            if ( attribute.AttributeClass?.ToDisplayString() == fullName )
+                return attribute;
         }
 
         return null;
+    }
+
+    private static ConverterDeclaration? GetConverterAttributeFrom(ISymbol propertySymbol)
+    {
+        var attribute = GetAttributeFrom(propertySymbol, "CsvMole.Abstractions.Attributes.CsvConverterAttribute");
+        if ( attribute is null )
+            return null;
+        
+        var converterType = attribute.ConstructorArguments[0].Value?.ToString();
+        return converterType is null ? null : new ConverterDeclaration(converterType);
     }
     
     /// <summary>

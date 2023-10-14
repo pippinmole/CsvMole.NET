@@ -12,6 +12,7 @@ internal record MethodDeclaration(
     string MethodName,
     string OuterReturnType,
     string InnerReturnType,
+    DelimiterAttributeDeclaration? DelimiterAttribute,
     EquatableArray<ParameterDeclaration> Parameters,
     EquatableArray<PropertyDeclaration> Properties
 );
@@ -33,4 +34,8 @@ internal record PropertyDeclaration(
 /// <param name="Type">The type of the converter. For example: typeof(DateTimeConverter).Name</param>
 internal record ConverterDeclaration(
     string Type
+);
+
+internal record DelimiterAttributeDeclaration(
+    string Delimiter
 );

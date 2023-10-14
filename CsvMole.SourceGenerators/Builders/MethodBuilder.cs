@@ -1,6 +1,5 @@
 ﻿using System.CodeDom.Compiler;
 using System.Collections.Immutable;
-using System.Reflection.Metadata;
 
 namespace CsvMole.Source.Builders;
 
@@ -35,7 +34,8 @@ internal sealed class MethodBuilder(IndentedTextWriter indentedTextWriter, Metho
         indentedTextWriter.WriteLine($"var model = new {methodDeclaration.InnerReturnType}();");
 
         // Split line into values
-        indentedTextWriter.WriteLine("var values = line.Split(',');");
+        var delimiter = methodDeclaration.DelimiterAttribute?.Delimiter ?? ",";
+        indentedTextWriter.WriteLine($"var values = line.Split(\"{delimiter}\");");
 
         var i = 0;
         foreach ( var property in methodDeclaration.Properties )
