@@ -16,5 +16,5 @@ using CsvMole.Benchmarks.Models;
 // {
 //     Console.WriteLine("Id: {0}, Date: {1}", result.Id, result.Date);
 // }
-BenchmarkRunner.Run<ParserBenchmarks>();
-// BenchmarkRunner.Run<StructBenchmarks>();
+// BenchmarkRunner.Run<ParserBenchmarks>();
+BenchmarkRunner.Run<StructBenchmarks>();
