@@ -1,7 +1,8 @@
 ﻿using System.CodeDom.Compiler;
 using System.Collections.Immutable;
+using CsvMole.SourceGenerators.Models;
 
-namespace CsvMole.Source.Builders;
+namespace CsvMole.SourceGenerators.Builders;
 
 internal sealed class MethodBuilder(IndentedTextWriter indentedTextWriter, MethodDeclaration methodDeclaration)
 {
@@ -9,20 +10,9 @@ internal sealed class MethodBuilder(IndentedTextWriter indentedTextWriter, Metho
     {
         indentedTextWriter.WriteLine();
         indentedTextWriter.WriteLine(
-            $"public static partial {methodDeclaration.OuterReturnType} {methodDeclaration.MethodName}({BuildParameters(methodDeclaration.Parameters)})");
+            $"public partial {methodDeclaration.OuterReturnType} {methodDeclaration.MethodName}({BuildParameters(methodDeclaration.Parameters)})");
         indentedTextWriter.WriteLine("{");
         indentedTextWriter.Indent++;
-
-        // Initialise the converters
-        var converters = methodDeclaration.Properties
-            .Select(x => x.Converter)
-            .ToImmutableArray();
-
-        for ( var index = 0; index < converters.Length; index++ )
-        {
-            var converter = converters[index];
-            InitializeConverter(converter, index);
-        }
 
         BuildSkipHeaderFromOptions(indentedTextWriter);
         
@@ -72,19 +62,11 @@ internal sealed class MethodBuilder(IndentedTextWriter indentedTextWriter, Metho
         return string.Join(", ", parameters);
     }
 
-    private void InitializeConverter(ConverterDeclaration? converter, int index)
-    {
-        if ( converter is null )
-            return;
-
-        indentedTextWriter.WriteLine($"var converter{index} = new {converter.Type}();");
-    }
-
     private static string BuildProperty(PropertyDeclaration propertyDeclaration, int index)
     {
         var converter = propertyDeclaration.Converter;
         return converter is null
             ? $"model.{propertyDeclaration.Name} = values[{index}];"
-            : $"model.{propertyDeclaration.Name} = converter{index}.ConvertFromString(values[{index}]);";
+            : $"model.{propertyDeclaration.Name} = {converter.GetStaticReadonlyVariableName()}.ConvertFromString(values[{index}]);";
     }
 }

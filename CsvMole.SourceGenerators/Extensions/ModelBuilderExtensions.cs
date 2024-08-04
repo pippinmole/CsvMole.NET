@@ -1,28 +1,27 @@
 ﻿using System.Collections.Immutable;
+using CsvMole.SourceGenerators.Models;
 using Microsoft.CodeAnalysis;
 
-namespace CsvMole.Source.Extensions;
+namespace CsvMole.SourceGenerators.Extensions;
 
 internal static class ModelBuilderExtensions
 {
-    public static ImmutableArray<MethodDeclaration> GetMethodDeclarations(this INamedTypeSymbol classSymbol)
+    private static ImmutableArray<MethodDeclaration> GetMethodDeclarations(this INamedTypeSymbol classSymbol)
     {
-        return classSymbol.GetMembers()
-            .OfType<IMethodSymbol>()
-            .Where(static x => x.DeclaredAccessibility == Accessibility.Public)
-            .Where(static x => x.IsStatic)
-            .Select(ToModel)
-            .ToImmutableArray();
+        return [
+            ..classSymbol.GetMembers()
+                .OfType<IMethodSymbol>()
+                .Where(static x => x.DeclaredAccessibility == Accessibility.Public && !x.ReturnsVoid)
+                .Select(ToModel)
+        ];
     }
 
     public static PartialDeclaration GetPartialDeclaration(this INamedTypeSymbol classSymbol)
     {
-        var methodModels = classSymbol.GetMethodDeclarations();
-
         return new PartialDeclaration(
             classSymbol.ContainingNamespace.ToDisplayString(),
             classSymbol.Name,
-            methodModels
+            classSymbol.GetMethodDeclarations()
         );
     }
 
@@ -42,12 +41,12 @@ internal static class ModelBuilderExtensions
         var parameters = methodSymbol.Parameters
             .Select(x => new ParameterDeclaration(x.Name, x.Type.ToString()))
             .ToImmutableArray();
-
+        
         // Outer = IEnumerable<T>, Inner = T
         var (outer, inner) = ExtractIEnumerableGenericType(methodSymbol);
         
-        _ = inner ?? throw new Exception("Inner is null");
-        _ = outer ?? throw new Exception("Outer is null");
+        _ = inner ?? throw new NullReferenceException($"Inner is null for method: {methodSymbol.Name}");
+        _ = outer ?? throw new NullReferenceException($"Outer is null for method: {methodSymbol.Name}");
 
         // Get the properties from the model which the Csv Parser will return
         var properties = GetPropertiesFromClass(inner);
@@ -62,15 +61,13 @@ internal static class ModelBuilderExtensions
             properties
         );
     }
-    
-    public static (ITypeSymbol? IEnumerableType, ITypeSymbol? InnerType) ExtractIEnumerableGenericType(
-        IMethodSymbol method)
+
+    private static (ITypeSymbol? IEnumerableType, ITypeSymbol? InnerType) ExtractIEnumerableGenericType(IMethodSymbol method)
     {
         var returnType = method.ReturnType;
-
-        if ( returnType is not INamedTypeSymbol { IsGenericType: true } namedTypeSymbol ||
-             namedTypeSymbol.OriginalDefinition.ToDisplayString() != "System.Collections.Generic.IEnumerable<T>" )
-            return (null, null);
+        
+        if (returnType is not INamedTypeSymbol {IsGenericType: true} namedTypeSymbol)
+            throw new NotSupportedException($"Return type of a CSV parser function has to be IEnumerable<T>: " + returnType.Name + " on method " + method);
         
         // Now, genericTypeSymbol represents the 'T' in 'IEnumerable<T>'
         var genericTypeSymbol = namedTypeSymbol.TypeArguments[0];
@@ -127,10 +124,10 @@ internal static class ModelBuilderExtensions
             result.Add(asModel);
         }
 
-        return result.ToImmutableArray();
+        return [..result];
     }
-    
-    public static ImmutableArray<IPropertySymbol>? ExtractPropertiesFromType(ITypeSymbol? modelSymbol)
+
+    private static ImmutableArray<IPropertySymbol>? ExtractPropertiesFromType(ITypeSymbol? modelSymbol)
     {
         return modelSymbol?.GetMembers()
             .OfType<IPropertySymbol>()

@@ -1,12 +1,12 @@
 ﻿using CsvMole.Abstractions.Attributes;
 using CsvMole.Abstractions.Options;
 
-namespace CsvMole.SourceGenerators.Tests.Compilation;
+namespace CsvMole.SourceGenerators.Tests;
 
 [CsvParser]
-public static partial class CompilationParser
+public partial class CompilationParser
 {
-    public static partial IEnumerable<TestCompilationModel> Parse(StringReader stringReader, CsvOptions? options);
+    public partial IEnumerable<TestCompilationModel> Parse(StringReader stringReader, CsvOptions? options);
 }
 
 public class TestCompilationModel
@@ -28,14 +28,15 @@ public class TestModelCompilationTests
         {
             HasHeader = true
         };
+        var parser = new CompilationParser();
 
         // Act
-        var result = CompilationParser.Parse(stringReader, options)
+        var result = parser.Parse(stringReader, options)
             .ToList();
 
         // Assert
-        CollectionAssert.AllItemsAreNotNull(result);
-        CollectionAssert.IsNotEmpty(result);
+        Assert.That(result, Is.All.Not.Null);
+        Assert.That(result, Is.Not.Empty);
         Assert.That(result, Has.Count.EqualTo(1));
 
         var first = result[0];
@@ -53,14 +54,15 @@ public class TestModelCompilationTests
         {
             HasHeader = false
         };
+        var parser = new CompilationParser();
 
         // Act
-        var result = CompilationParser.Parse(stringReader, options)
+        var result = parser.Parse(stringReader, options)
             .ToList();
 
         // Assert
-        CollectionAssert.AllItemsAreNotNull(result);
-        CollectionAssert.IsNotEmpty(result);
+        Assert.That(result, Is.All.Not.Null);
+        Assert.That(result, Is.Not.Empty);
         Assert.That(result, Has.Count.EqualTo(1));
 
         var first = result[0];

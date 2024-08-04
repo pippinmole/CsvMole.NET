@@ -9,12 +9,14 @@ using Sylvan.Data;
 namespace CsvMole.Benchmarks;
 
 [SimpleJob(RuntimeMoniker.Net80)]
-[SimpleJob(RuntimeMoniker.Net70)]
 [MemoryDiagnoser(false)]
-public class ParserBenchmarks
+public sealed class ParserBenchmarks
 {
     private string _content = null!;
     private string _contentFastPath = null!;
+
+    private readonly CustomParserExample _customParserExample = new();
+    private readonly CustomParserExample1 _customParserExample1 = new();
     
     [Params(1, 100, 1_000)] //, 100_000
     public int N { get; set; }
@@ -27,7 +29,7 @@ public class ParserBenchmarks
         
         for (var i = 0; i < N; i++)
         {
-            _content += $"{i},{DateTime.Now}\n";
+            _content += $"{i},{DateTime.Now:yyyy-M-d dddd}\n";
             _contentFastPath += $"{i},{DateTime.Now:yyyy-MM-dd HH:mm:ss}\n";
         }
     }
@@ -36,7 +38,14 @@ public class ParserBenchmarks
     public List<CustomParserModel> SourceGeneratedParse()
     {
         var stringReader = new StringReader(_content);
-        return CustomParserExample.Parse(stringReader).ToList();
+        return _customParserExample.Parse(stringReader).ToList();
+    }
+    
+    [Benchmark]
+    public List<CustomParserModel> SourceGeneratedParse_New()
+    {
+        var stringReader = new StringReader(_content);
+        return _customParserExample1.Parse1(stringReader).ToList();
     }
     
     [Benchmark]
@@ -60,7 +69,7 @@ public class ParserBenchmarks
     {
         using var textReader = new StringReader(_content);
         using var dr = Sylvan.Data.Csv.CsvDataReader.Create(textReader);
-
+    
         var list = new List<CsvHelperSylvan>();
         while (dr.Read())
         {
@@ -72,7 +81,7 @@ public class ParserBenchmarks
                 }
             );
         }
-
+    
         return list;
     }
     
@@ -81,7 +90,7 @@ public class ParserBenchmarks
     {
         using var textReader = new StringReader(_contentFastPath);
         using var dr = Sylvan.Data.Csv.CsvDataReader.Create(textReader);
-
+    
         var list = new List<CsvHelperSylvan>();
         while (dr.Read())
         {
@@ -93,10 +102,10 @@ public class ParserBenchmarks
                 }
             );
         }
-
+    
         return list;
     }
-
+    
     [Benchmark]
     public List<SepModel> SepParse()
     {
@@ -108,12 +117,13 @@ public class ParserBenchmarks
                 Date = x.Value
             }).ToList();
     }
-
+    
     public static IEnumerable<(string Key, DateTime? Value)> Enumerate(SepReader reader)
     {
-        foreach (var row in reader)
+        using var sepReader = reader.GetEnumerator();
+        foreach (var row in sepReader)
         {
-            yield return (row["Id"].ToString(), row["Date"].Parse<DateTime>());
+            yield return (row[0].ToString(), row["Date"].Parse<DateTime>());
         }
     }
 }

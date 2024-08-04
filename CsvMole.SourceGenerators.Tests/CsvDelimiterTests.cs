@@ -4,34 +4,36 @@ using CsvMole.Abstractions.Options;
 namespace CsvMole.SourceGenerators.Tests;
 
 [CsvParser]
-public static partial class CsvParser
+public partial class CsvParser
 {
-    public static partial IEnumerable<CsvPipeDelimiterModel> ParsePipeDelimited(StringReader stringReader, CsvOptions? options);
-    public static partial IEnumerable<CsvCommaDelimiterModel> ParseCommaDelimited(StringReader stringReader, CsvOptions? options);
-    public static partial IEnumerable<NoDelimiterModel> ParseNoDelimiter(StringReader stringReader, CsvOptions? options);
+    public partial IEnumerable<CsvPipeDelimiterModel> ParsePipeDelimited(StringReader stringReader, CsvOptions? options);
+
+    public partial IEnumerable<CsvCommaDelimiterModel> ParseCommaDelimited(StringReader stringReader, CsvOptions? options);
+
+    public partial IEnumerable<NoDelimiterModel> ParseNoDelimiter(StringReader stringReader, CsvOptions? options);
 }
 
-public class NoDelimiterModel
+public sealed class NoDelimiterModel
 {
     public string Id { get; set; } = null!;
     public string SecondValue { get; set; } = null!;
 }
 
 [CsvDelimiter("|")]
-public class CsvPipeDelimiterModel
+public sealed class CsvPipeDelimiterModel
 {
     public string Id { get; set; } = null!;
     public string SecondValue { get; set; } = null!;
 }
 
 [CsvDelimiter(",")]
-public class CsvCommaDelimiterModel
+public sealed class CsvCommaDelimiterModel
 {
     public string Id { get; set; } = null!;
     public string SecondValue { get; set; } = null!;
 }
 
-public class CsvDelimiterTests
+public sealed class CsvDelimiterTests
 {
     [Test]
     public void NoCsvDelimiterModel_DefaultsToComma_And_ParsesProperly_WithHeader()
@@ -41,13 +43,14 @@ public class CsvDelimiterTests
         using var stringReader = new StringReader(text);
 
         var options = new CsvOptions { HasHeader = true };
+        var parser = new CsvParser();
 
         // Act
-        var result = CsvParser.ParseNoDelimiter(stringReader, options).ToList();
+        var result = parser.ParseNoDelimiter(stringReader, options).ToList();
 
         // Assert
-        CollectionAssert.AllItemsAreNotNull(result);
-        CollectionAssert.IsNotEmpty(result);
+        Assert.That(result, Is.All.Not.Null);
+        Assert.That(result, Is.Not.Empty);
         Assert.That(result, Has.Count.EqualTo(1));
 
         var first = result[0];
@@ -59,6 +62,32 @@ public class CsvDelimiterTests
     }
     
     [Test]
+    public void NoCsvDelimiterModel_WithEscapedCommaCell_DoesntSplitOnEscaped_WithoutHeader()
+    {
+        // Arrange
+        const string text = "1,\"2,3\""; // 1,"2,3"
+        using var stringReader = new StringReader(text);
+
+        var options = new CsvOptions { HasHeader = false };
+        var parser = new CsvParser();
+
+        // Act
+        var result = parser.ParseNoDelimiter(stringReader, options).ToList();
+
+        // Assert
+        Assert.That(result, Is.All.Not.Null);
+        Assert.That(result, Is.Not.Empty);
+        Assert.That(result, Has.Count.EqualTo(1));
+
+        var first = result[0];
+        Assert.Multiple(() =>
+        {
+            Assert.That(first.Id, Is.EqualTo("1"));
+            Assert.That(first.SecondValue, Is.EqualTo("2,3"));
+        });
+    }
+    
+    [Test]
     public void NoCsvDelimiterModel_DefaultsToComma_And_ParsesProperly_WithNoHeader()
     {
         // Arrange
@@ -66,13 +95,14 @@ public class CsvDelimiterTests
         using var stringReader = new StringReader(text);
 
         var options = new CsvOptions { HasHeader = false };
+        var parser = new CsvParser();
 
         // Act
-        var result = CsvParser.ParseNoDelimiter(stringReader, options).ToList();
+        var result = parser.ParseNoDelimiter(stringReader, options).ToList();
 
         // Assert
-        CollectionAssert.AllItemsAreNotNull(result);
-        CollectionAssert.IsNotEmpty(result);
+        Assert.That(result, Is.All.Not.Null);
+        Assert.That(result, Is.Not.Empty);
         Assert.That(result, Has.Count.EqualTo(1));
 
         var first = result[0];
@@ -91,13 +121,14 @@ public class CsvDelimiterTests
         using var stringReader = new StringReader(text);
 
         var options = new CsvOptions { HasHeader = true };
+        var parser = new CsvParser();
 
         // Act
-        var result = CsvParser.ParsePipeDelimited(stringReader, options).ToList();
+        var result = parser.ParsePipeDelimited(stringReader, options).ToList();
 
         // Assert
-        CollectionAssert.AllItemsAreNotNull(result);
-        CollectionAssert.IsNotEmpty(result);
+        Assert.That(result, Is.All.Not.Null);
+        Assert.That(result, Is.Not.Empty);
         Assert.That(result, Has.Count.EqualTo(1));
 
         var first = result[0];
@@ -116,13 +147,14 @@ public class CsvDelimiterTests
         using var stringReader = new StringReader(text);
 
         var options = new CsvOptions { HasHeader = true };
-
+        var parser = new CsvParser();
+        
         // Act
-        var result = CsvParser.ParseCommaDelimited(stringReader, options).ToList();
+        var result = parser.ParseCommaDelimited(stringReader, options).ToList();
 
         // Assert
-        CollectionAssert.AllItemsAreNotNull(result);
-        CollectionAssert.IsNotEmpty(result);
+        Assert.That(result, Is.All.Not.Null);
+        Assert.That(result, Is.Not.Empty);
         Assert.That(result, Has.Count.EqualTo(1));
 
         var first = result[0];
@@ -141,13 +173,14 @@ public class CsvDelimiterTests
         using var stringReader = new StringReader(text);
 
         var options = new CsvOptions { HasHeader = false };
+        var parser = new CsvParser();
 
         // Act
-        var result = CsvParser.ParseCommaDelimited(stringReader, options).ToList();
+        var result = parser.ParseCommaDelimited(stringReader, options).ToList();
 
         // Assert
-        CollectionAssert.AllItemsAreNotNull(result);
-        CollectionAssert.IsNotEmpty(result);
+        Assert.That(result, Is.All.Not.Null);
+        Assert.That(result, Is.Not.Empty);
         Assert.That(result, Has.Count.EqualTo(1));
 
         var first = result[0];
@@ -166,13 +199,14 @@ public class CsvDelimiterTests
         using var stringReader = new StringReader(text);
 
         var options = new CsvOptions { HasHeader = false };
+        var parser = new CsvParser();
 
         // Act
-        var result = CsvParser.ParsePipeDelimited(stringReader, options).ToList();
+        var result = parser.ParsePipeDelimited(stringReader, options).ToList();
 
         // Assert
-        CollectionAssert.AllItemsAreNotNull(result);
-        CollectionAssert.IsNotEmpty(result);
+        Assert.That(result, Is.All.Not.Null);
+        Assert.That(result, Is.Not.Empty);
         Assert.That(result, Has.Count.EqualTo(1));
 
         var first = result[0];

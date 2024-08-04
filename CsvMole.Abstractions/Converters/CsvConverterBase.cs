@@ -2,10 +2,11 @@
 
 public abstract class CsvConverterBase<T>
 {
-    public abstract T? ConvertFromString(string value);
+    public virtual T? ConvertFromString(string value) => ConvertFromSpan(value.AsSpan());
+    public abstract T? ConvertFromSpan(ReadOnlySpan<char> value);
 
-    public virtual string ConvertToString(T? value)
+    public virtual ReadOnlySpan<char> ConvertToString(T? value)
     {
-        return value == null ? string.Empty : value.ToString() ?? string.Empty;
+        return value == null ? ReadOnlySpan<char>.Empty : value.ToString() ?? ReadOnlySpan<char>.Empty;
     }
 }

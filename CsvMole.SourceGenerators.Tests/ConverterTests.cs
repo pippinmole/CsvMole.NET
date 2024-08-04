@@ -2,15 +2,15 @@
 using CsvMole.Abstractions.Converters;
 using CsvMole.Abstractions.Options;
 
-namespace CsvMole.SourceGenerators.Tests.Converters;
+namespace CsvMole.SourceGenerators.Tests;
 
 [CsvParser]
-public static partial class ConverterParser
+public partial class ConverterParser
 {
-    public static partial IEnumerable<ConverterModel> Parse(StringReader stringReader, CsvOptions? options);
+    public partial IEnumerable<ConverterModel> Parse(StringReader stringReader, CsvOptions? options);
 }
 
-public class ConverterModel
+public sealed class ConverterModel
 {
     public string Id { get; set; } = null!;
     
@@ -28,14 +28,15 @@ public class ConverterTests
         using var stringReader = new StringReader(text);
 
         var options = new CsvOptions { HasHeader = true };
+        var parser = new ConverterParser();
 
         // Act
-        var result = ConverterParser.Parse(stringReader, options)
+        var result = parser.Parse(stringReader, options)
             .ToList();
 
         // Assert
-        CollectionAssert.AllItemsAreNotNull(result);
-        CollectionAssert.IsNotEmpty(result);
+        Assert.That(result, Is.All.Not.Null);
+        Assert.That(result, Is.Not.Empty);
         Assert.That(result, Has.Count.EqualTo(1));
 
         var first = result[0];

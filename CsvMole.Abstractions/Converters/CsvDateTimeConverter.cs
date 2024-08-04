@@ -2,7 +2,7 @@
 
 public class CsvDateTimeConverter : CsvConverterBase<DateTime?>
 {
-    public override DateTime? ConvertFromString(string value)
+    public override DateTime? ConvertFromSpan(ReadOnlySpan<char> value)
     {
         if ( DateTime.TryParse(value, out var result) )
         {
@@ -12,13 +12,8 @@ public class CsvDateTimeConverter : CsvConverterBase<DateTime?>
         return null;
     }
 
-    public override string ConvertToString(DateTime? value)
+    public override ReadOnlySpan<char> ConvertToString(DateTime? value)
     {
-        if ( value.HasValue )
-        {
-            return value.Value.ToString("yyyy-MM-dd");
-        }
-
-        return string.Empty;
+        return value?.ToString("yyyy-MM-dd") ?? ReadOnlySpan<char>.Empty;
     }
 }

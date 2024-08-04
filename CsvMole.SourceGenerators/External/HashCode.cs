@@ -8,7 +8,7 @@ using System.Security.Cryptography;
 
 #pragma warning disable CS0809
 
-namespace System;
+namespace CsvMole.SourceGenerators.External;
 
 /// <summary>
 /// A polyfill type that mirrors some methods from <see cref="HashCode"/> on .NET 6.

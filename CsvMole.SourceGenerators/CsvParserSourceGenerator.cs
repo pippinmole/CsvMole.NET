@@ -1,10 +1,11 @@
 ﻿using System.Text;
-using CsvMole.Source.Builders;
-using CsvMole.Source.Extensions;
+using CsvMole.SourceGenerators.Builders;
+using CsvMole.SourceGenerators.Extensions;
+using CsvMole.SourceGenerators.Models;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
-namespace CsvMole.Source;
+namespace CsvMole.SourceGenerators;
 
 [Generator]
 internal sealed class CsvParserIncrementalGenerator : IIncrementalGenerator
@@ -32,7 +33,7 @@ internal sealed class CsvParserIncrementalGenerator : IIncrementalGenerator
         return namedTypeSymbol.GetPartialDeclaration();
     }
 
-    public static void Execute(PartialDeclaration partialDeclaration, SourceProductionContext context)
+    private static void Execute(PartialDeclaration partialDeclaration, SourceProductionContext context)
     {
         var builder = new PartialBuilder(partialDeclaration);
         var result = builder.Build();
