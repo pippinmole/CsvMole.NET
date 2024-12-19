@@ -29,7 +29,7 @@ jobs:
         run: dotnet build --no-restore
 
       - name: Test
-        run: dotnet test --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.info ./CsvMole.SourceGenerators.Tests
+        run: dotnet test --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.info ./test/CsvMole.SourceGenerators.Tests
         
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
