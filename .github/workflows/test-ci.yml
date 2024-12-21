@@ -32,7 +32,7 @@ jobs:
         run: dotnet test --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.info ./test/CsvMole.SourceGenerators.Tests
         
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }} # Not required for public repos
           file: ./CsvMole.SourceGenerators.Tests/lcov.info # Path to the coverage file
