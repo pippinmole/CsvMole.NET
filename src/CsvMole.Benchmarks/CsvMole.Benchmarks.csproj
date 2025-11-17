@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
+      <PackageReference Include="BenchmarkDotNet" Version="0.15.6" />
       <PackageReference Include="CsvHelper" Version="33.0.1" />
       <PackageReference Include="Sep" Version="0.9.0" />
       <PackageReference Include="Sylvan.Data" Version="0.2.16" />
