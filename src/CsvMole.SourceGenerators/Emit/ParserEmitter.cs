@@ -52,20 +52,34 @@ internal static class ParserEmitter
     private static void EmitMethod(IndentedTextWriter writer, MethodModel method, Names names)
     {
         writer.WriteLine(GeneratedCodeAttribute);
-        writer.WriteLine(method.Signature);
+        var signature = method.Signature;
+        if (method.IsAsync && method.Model is not null)
+        {
+            // Modifiers always include "partial", which must directly precede the return type, so async goes before it.
+            var at = signature.IndexOf("partial ", StringComparison.Ordinal);
+            if (at >= 0) signature = signature.Insert(at, "async ");
+        }
+        if (method.IsAsync && method.Model is not null && method.CancellationParamName is { } token)
+        {
+            // The token must be marked on the implementing part for WithCancellation(...) to reach it.
+            var type = "global::System.Threading.CancellationToken " + Identifier(token);
+            signature = signature.Replace(type, "[global::System.Runtime.CompilerServices.EnumeratorCancellation] " + type);
+        }
+        writer.WriteLine(signature);
         writer.WriteLine("{");
         writer.Indent++;
-        // Async bodies are Task 10; until then they stay stubs.
-        if (method.Model is null || method.IsAsync) EmitStubBody(writer);
-        else EmitSyncBody(writer, method, method.Model, names.Model(method.Model));
+        if (method.Model is null) EmitStubBody(writer);
+        else EmitBody(writer, method, method.Model, names.Model(method.Model));
         CloseBlock(writer);
     }
 
     private static void EmitStubBody(IndentedTextWriter writer) =>
         writer.WriteLine("throw new global::System.NotSupportedException(\"CsvMole: see diagnostics\");");
 
-    private static void EmitSyncBody(IndentedTextWriter w, MethodModel method, ModelInfo model, string id)
+    private static void EmitBody(IndentedTextWriter w, MethodModel method, ModelInfo model, string id)
     {
+        var a = method.IsAsync;
+        string Read() => a ? $"await __r.ReadAsync({(method.CancellationParamName is { } t ? Identifier(t) : "default")}).ConfigureAwait(false)" : "__r.Read()";
         w.WriteLine(method.OptionsParamName is null
             ? "var __options = global::CsvMole.CsvOptions.Default;"
             : $"var __options = {Identifier(method.OptionsParamName)} ?? global::CsvMole.CsvOptions.Default;");
@@ -74,7 +88,7 @@ internal static class ParserEmitter
         w.WriteLine("if (__options.HasHeader)");
         w.WriteLine("{");
         w.Indent++;
-        w.WriteLine("if (!__r.Read()) yield break;");
+        w.WriteLine($"if (!{Read()}) yield break;");
         w.WriteLine($"__map = global::CsvMole.CsvHeader.Resolve(__r, __names_{id}, __orders_{id}, __members_{id});");
         CloseBlock(w);
         w.WriteLine("else");
@@ -82,7 +96,7 @@ internal static class ParserEmitter
         w.Indent++;
         w.WriteLine($"__map = global::CsvMole.CsvHeader.Resolve(null, __names_{id}, __orders_{id}, __members_{id});");
         CloseBlock(w);
-        w.WriteLine("while (__r.Read())");
+        w.WriteLine($"while ({Read()})");
         w.WriteLine("{");
         w.Indent++;
         w.WriteLine($"if (__TryBind_{id}(__r, __map, out var __m)) yield return __m;");

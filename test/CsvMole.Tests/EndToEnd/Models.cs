@@ -110,9 +110,39 @@ namespace CsvMole.Tests.EndToEnd
         public int Skipped { get; }
     }
 
+    public sealed class Aged
+    {
+        [CsvColumn("Id")] public int Id { get; set; }
+        [CsvColumn("Age")] public int Age { get; set; }
+    }
+
+    public sealed class OptPair
+    {
+        [CsvOrder(0)] public int? A { get; set; }
+        [CsvOrder(1)] public string? B { get; set; }
+        [CsvOrder(2)] public int? C { get; set; }
+    }
+
+    public sealed class Money
+    {
+        [CsvColumn("Amount")] public decimal Amount { get; set; }
+    }
+
+    [CsvDelimiter(';')]
+    public sealed class SemiMoney
+    {
+        [CsvColumn("Amount")] public decimal Amount { get; set; }
+    }
+
     [CsvParser]
     public partial class EndToEndParser
     {
+        public partial IEnumerable<OptPair> ParseOptPairs(TextReader reader, CsvOptions? options = null);
+        public partial IEnumerable<Aged> ParseAged(TextReader reader, CsvOptions? options = null);
+        public partial IEnumerable<Money> ParseMoney(TextReader reader, CsvOptions? options = null);
+        public partial IEnumerable<SemiMoney> ParseSemiMoney(TextReader reader, CsvOptions? options = null);
+        public partial IAsyncEnumerable<Aged> ParseAgedAsync(TextReader reader, CsvOptions? options = null, CancellationToken ct = default);
+        public partial IAsyncEnumerable<Pair> ParsePairsAsync(TextReader reader, CsvOptions? options = null, CancellationToken ct = default);
         public partial IEnumerable<MutableModel> ParseMutable(TextReader reader, CsvOptions? options = null);
         public partial IEnumerable<Other.MutableModel> ParseOtherMutable(TextReader reader, CsvOptions? options = null);
         public partial IEnumerable<Person> ParsePeople(TextReader reader, CsvOptions? options = null);
