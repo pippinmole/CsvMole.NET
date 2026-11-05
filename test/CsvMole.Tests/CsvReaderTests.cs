@@ -10,6 +10,8 @@ public class CsvReaderTests
         public override int Read(char[] buffer, int index, int count) =>
             base.Read(buffer, index, Math.Min(count, maxChunk));
         public override int Read(Span<char> buffer) => base.Read(buffer[..Math.Min(buffer.Length, maxChunk)]);
+        public override ValueTask<int> ReadAsync(Memory<char> buffer, CancellationToken ct = default) =>
+            new(base.Read(buffer.Span[..Math.Min(buffer.Length, maxChunk)]));
     }
 
     internal static CsvReader Make(string input, int size, int chunk, CsvOptions? options = null, char delimiter = ',') =>

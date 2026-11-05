@@ -104,9 +104,48 @@ public sealed class CsvReader : IDisposable
         }
     }
 
+    /// <summary>
+    /// Async <see cref="Read"/>: completes synchronously when a full record is already buffered. Cancellation is only
+    /// observed when a refill is needed. Parse errors surface through the returned task.
+    /// </summary>
+    public ValueTask<bool> ReadAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        try
+        {
+            return TryReadRecord() switch
+            {
+                ReadResult.Record => new ValueTask<bool>(true),
+                ReadResult.End => new ValueTask<bool>(false),
+                _ => ReadAsyncSlow(cancellationToken),
+            };
+        }
+        catch (CsvParseException e)
+        {
+            return ValueTask.FromException<bool>(e);
+        }
+    }
+
+    private async ValueTask<bool> ReadAsyncSlow(CancellationToken ct)
+    {
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            PrepareRefill();
+            var read = await _reader.ReadAsync(_buffer.AsMemory(_end), ct).ConfigureAwait(false);
+            if (read == 0) _eof = true;
+            _end += read;
+            switch (TryReadRecord())
+            {
+                case ReadResult.Record: return true;
+                case ReadResult.End: return false;
+            }
+        }
+    }
+
     private enum ReadResult { Record, NeedMore, End }
 
-    /// <summary>Finds the next record in the buffered data. Shared by sync and (future) async Read.</summary>
+    /// <summary>Finds the next record in the buffered data. Shared by Read and ReadAsync.</summary>
     private ReadResult TryReadRecord()
     {
         while (true)
