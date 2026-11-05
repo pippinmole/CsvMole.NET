@@ -52,7 +52,7 @@ public sealed class ParserBenchmarks
     public List<CsvHelperModel> CsvHelperParse()
     {
         var stringReader = new StringReader(_content);
-        using var csvReader = new CsvReader(stringReader, CultureInfo.InvariantCulture);
+        using var csvReader = CsvReader.Create(stringReader);
         return csvReader.GetRecords<CsvHelperModel>().ToList();
     }
     
