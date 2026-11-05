@@ -36,7 +36,8 @@ internal sealed record ModelInfo(string TypeFullName, char? Delimiter, Equatable
 
 /// <param name="Order">The [CsvOrder] index, or -1 when absent.</param>
 /// <param name="UnderlyingTypeFullName">The type to parse: T for Nullable&lt;T&gt;, the enum, or the ISpanParsable type.</param>
-/// <param name="IsNullable">True only for Nullable&lt;T&gt; members (string nullability is in <see cref="ParseKind"/>).</param>
+/// <param name="IsNullable">True for Nullable&lt;T&gt; members, and for converter members of a Nullable&lt;T&gt; or annotated
+/// reference type (built-in string nullability is in <see cref="ParseKind"/>). A missing column then gives null.</param>
 /// <param name="CtorParameterIndex">Index in the chosen constructor, or -1 for initializer-assigned members.</param>
 /// <param name="IsRequired">A C# <c>required</c> member: it must also be set in the object initializer unless
 /// <see cref="ConstructorInfo.SetsRequiredMembers"/>.</param>

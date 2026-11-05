@@ -219,4 +219,24 @@ public class ModelAnalyzerTests
             """);
         Assert.That(Member(model, "A").ColumnName, Is.EqualTo("a"));
     }
+
+    [Test]
+    public void ConverterMember_NullableType_IsNullable()
+    {
+        var model = AnalyzeValid("""
+            using System.Globalization;
+            public sealed class IntConv : CsvConverter<int?> { public override bool TryParse(ReadOnlySpan<char> v, CultureInfo c, out int? r) { r = null; return true; } }
+            public sealed class StrConv : CsvConverter<string?> { public override bool TryParse(ReadOnlySpan<char> v, CultureInfo c, out string? r) { r = null; return true; } }
+            public sealed class PlainConv : CsvConverter<int> { public override bool TryParse(ReadOnlySpan<char> v, CultureInfo c, out int r) { r = 0; return true; } }
+            public class M
+            {
+                [CsvOrder(0), CsvConverter(typeof(IntConv))] public int? A { get; set; }
+                [CsvOrder(1), CsvConverter(typeof(StrConv))] public string? B { get; set; }
+                [CsvOrder(2), CsvConverter(typeof(PlainConv))] public int C { get; set; }
+            }
+            """);
+        Assert.That((Member(model, "A").Kind, Member(model, "A").IsNullable), Is.EqualTo((ParseKind.Converter, true)));
+        Assert.That(Member(model, "B").IsNullable, Is.True);
+        Assert.That(Member(model, "C").IsNullable, Is.False);
+    }
 }

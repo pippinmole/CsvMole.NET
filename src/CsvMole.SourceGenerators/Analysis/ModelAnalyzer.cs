@@ -121,6 +121,9 @@ internal static class ModelAnalyzer
                         converter?.ToDisplayString() ?? "?", error));
                 }
                 kind = ParseKind.Converter;
+                // So a missing column gives null; an empty field still goes to the converter.
+                isNullable = type.NullableAnnotation == NullableAnnotation.Annotated
+                    || type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
                 converterName = converter?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             }
             else if (ParseKindClassifier.Classify(type, c) is { } classified)
