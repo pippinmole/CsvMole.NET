@@ -5,17 +5,17 @@ public class CsvReaderTests
     private static readonly CsvOptions Defaults = new();
 
     // Returns at most maxChunk chars per Read, so records, CRLFs and blank lines genuinely span refills.
-    private sealed class ChunkedReader(string text, int maxChunk) : StringReader(text)
+    internal sealed class ChunkedReader(string text, int maxChunk) : StringReader(text)
     {
         public override int Read(char[] buffer, int index, int count) =>
             base.Read(buffer, index, Math.Min(count, maxChunk));
         public override int Read(Span<char> buffer) => base.Read(buffer[..Math.Min(buffer.Length, maxChunk)]);
     }
 
-    private static CsvReader Make(string input, int size, int chunk, CsvOptions? options = null, char delimiter = ',') =>
+    internal static CsvReader Make(string input, int size, int chunk, CsvOptions? options = null, char delimiter = ',') =>
         new(new ChunkedReader(input, chunk), options ?? Defaults, delimiter, size);
 
-    private static List<string[]> ReadAll(string input, int bufferSize, int chunk, CsvOptions? options = null, char delimiter = ',')
+    internal static List<string[]> ReadAll(string input, int bufferSize, int chunk, CsvOptions? options = null, char delimiter = ',')
     {
         using var reader = Make(input, bufferSize, chunk, options, delimiter);
         var rows = new List<string[]>();
@@ -141,10 +141,6 @@ public class CsvReaderTests
     public void TrimFields([Values(4, 7, 16, 4096)] int size, [Values(1, 2, 3, int.MaxValue)] int chunk) =>
         Assert.That(ReadAll(" a , b ", size, chunk, new CsvOptions { TrimFields = true }),
             Is.EqualTo(new[] { new[] { "a", "b" } }));
-
-    [Test]
-    public void QuoteIsLiteral_InThisTask([Values(4, 7, 16, 4096)] int size, [Values(1, 2, 3, int.MaxValue)] int chunk) =>
-        Assert.That(ReadAll("ab\"c,d", size, chunk), Is.EqualTo(new[] { new[] { "ab\"c", "d" } }));
 
     [Test]
     public void Indexer_OutOfRange_Throws()

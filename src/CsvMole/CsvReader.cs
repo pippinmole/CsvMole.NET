@@ -10,6 +10,7 @@ namespace CsvMole;
 public sealed class CsvReader : IDisposable
 {
     private const int DefaultBufferSize = 16 * 1024;
+    private static readonly SearchValues<char> QuotedSpecial = SearchValues.Create("\"\r\n");
 
     private readonly TextReader _reader;
     private readonly char _delimiter;
@@ -24,10 +25,27 @@ public sealed class CsvReader : IDisposable
     private bool _eof;
     private long _nextLine = 1;
 
-    // Field i is _buffer[_bounds[2i] .. _bounds[2i+1]).
+    // Field i is _buffer[_bounds[2i] .. _bounds[2i+1]), or _scratch[~_bounds[2i] .. _bounds[2i+1]) when _bounds[2i] < 0.
     private int[] _bounds;
     private int _fieldCount;
     private bool _disposed;
+
+    // Unescaped ("" -> ") quoted fields of the current record.
+    private char[] _scratch = [];
+    private int _scratchLength;
+
+    // Scan state of the in-progress record (absolute buffer indices, shifted by PrepareRefill), kept across NeedMore
+    // so a record trickling in is scanned once instead of rescanned from its start on every refill.
+    private bool _inRecord;
+    private int _pos;
+    private int _fieldStart;
+    private QuoteState _quote;
+    private int _quoteStart;   // first char after the opening quote
+    private int _quoteEnd;     // the closing quote
+    private bool _hasEscape;
+    private int _quotedLines;  // line breaks inside quotes, so LineNumber stays physical
+
+    private enum QuoteState { None, Inside, Closed }
 
     public CsvReader(TextReader reader, CsvOptions options, char delimiter)
         : this(reader, options, delimiter, DefaultBufferSize) { }
@@ -67,7 +85,8 @@ public sealed class CsvReader : IDisposable
             if ((uint)index >= (uint)_fieldCount)
                 ThrowIndex(index);
             var s = _bounds[2 * index];
-            return _buffer.AsSpan(s, _bounds[2 * index + 1] - s);
+            var e = _bounds[2 * index + 1];
+            return s >= 0 ? _buffer.AsSpan(s, e - s) : _scratch.AsSpan(~s, e - ~s);
         }
     }
 
@@ -92,33 +111,88 @@ public sealed class CsvReader : IDisposable
     {
         while (true)
         {
-            var recordStart = _start;
-            var fieldStart = recordStart;
-            var pos = recordStart;
-            _fieldCount = 0;
+            if (!_inRecord)
+            {
+                _inRecord = true;
+                _pos = _fieldStart = _start;
+                _fieldCount = 0;
+                _scratchLength = 0;
+                _quotedLines = 0;
+            }
 
+            var recordStart = _start;
             while (true)
             {
-                var idx = _buffer.AsSpan(pos, _end - pos).IndexOfAny(_special);
+                if (_quote == QuoteState.Inside)
+                {
+                    var qi = _buffer.AsSpan(_pos, _end - _pos).IndexOfAny(QuotedSpecial);
+                    if (qi < 0)
+                    {
+                        CheckLength(recordStart, _end);
+                        _pos = _end;
+                        if (!_eof) return ReadResult.NeedMore;
+                        throw new CsvParseException(new CsvError(_nextLine, _fieldCount, null, null,
+                            CsvErrors.Truncate(_buffer.AsSpan(recordStart, _end - recordStart)), CsvErrorReason.UnterminatedQuote));
+                    }
+
+                    var q = _pos + qi;
+                    var qc = _buffer[q];
+                    if (qc != '"')
+                    {
+                        // Count \r, and \n not preceded by \r. The opening quote precedes q, so q - 1 is in the record.
+                        if (qc == '\r' || _buffer[q - 1] != '\r') _quotedLines++;
+                        _pos = q + 1;
+                    }
+                    else if (q + 1 == _end && !_eof)
+                    {
+                        _pos = q; // may be the first half of "" split across refills
+                        CheckLength(recordStart, _end);
+                        return ReadResult.NeedMore;
+                    }
+                    else if (q + 1 < _end && _buffer[q + 1] == '"')
+                    {
+                        _hasEscape = true;
+                        _pos = q + 2;
+                    }
+                    else
+                    {
+                        _quote = QuoteState.Closed;
+                        _quoteEnd = q;
+                        _pos = q + 1;
+                    }
+                    continue;
+                }
+
+                var idx = _buffer.AsSpan(_pos, _end - _pos).IndexOfAny(_special);
                 if (idx < 0)
                 {
                     CheckLength(recordStart, _end);
+                    _pos = _end;
                     if (!_eof) return ReadResult.NeedMore;
-                    if (recordStart == _end && _fieldCount == 0) return ReadResult.End;
-                    AddField(fieldStart, _end);
+                    if (recordStart == _end && _fieldCount == 0)
+                    {
+                        _inRecord = false;
+                        return ReadResult.End;
+                    }
+                    EndField(_end);
                     return Complete(_end);
                 }
 
-                var p = pos + idx;
+                var p = _pos + idx;
                 var c = _buffer[p];
                 if (c == _delimiter)
                 {
-                    AddField(fieldStart, p);
-                    fieldStart = pos = p + 1;
+                    EndField(p);
+                    _fieldStart = _pos = p + 1;
                 }
                 else if (c == '"')
                 {
-                    pos = p + 1; // shortcut: quotes are literal until Task 4 adds RFC 4180 quoting
+                    if (_quote == QuoteState.None && IsOpeningQuote(p))
+                    {
+                        _quote = QuoteState.Inside;
+                        _quoteStart = p + 1;
+                    }
+                    _pos = p + 1; // otherwise a literal quote mid-field
                 }
                 else
                 {
@@ -127,7 +201,11 @@ public sealed class CsvReader : IDisposable
                     if (c == '\r')
                     {
                         // A trailing \r may be the first half of a CRLF split across refills.
-                        if (p + 1 == _end && !_eof) return ReadResult.NeedMore;
+                        if (p + 1 == _end && !_eof)
+                        {
+                            _pos = p;
+                            return ReadResult.NeedMore;
+                        }
                         if (p + 1 < _end && _buffer[p + 1] == '\n') terminator = 2;
                     }
 
@@ -135,22 +213,65 @@ public sealed class CsvReader : IDisposable
                     {
                         _start = p + terminator;
                         _nextLine++;
+                        _inRecord = false;
                         break; // blank line: look for the next record
                     }
 
-                    AddField(fieldStart, p);
+                    EndField(p);
                     return Complete(p + terminator);
                 }
             }
         }
     }
 
+    // RFC 4180: a quote opens a quoted field only as its first char; with TrimFields, leading whitespace is skipped first.
+    private bool IsOpeningQuote(int p) =>
+        p == _fieldStart || (_trim && _buffer.AsSpan(_fieldStart, p - _fieldStart).IsWhiteSpace());
+
     private ReadResult Complete(int next)
     {
         LineNumber = _nextLine;
-        _nextLine++;
+        _nextLine += 1 + _quotedLines;
         _start = next;
+        _inRecord = false;
         return ReadResult.Record;
+    }
+
+    private void EndField(int end)
+    {
+        var quoted = _quote == QuoteState.Closed;
+        var escaped = _hasEscape;
+        _quote = QuoteState.None;
+        _hasEscape = false;
+
+        // Anything but (trimmed) whitespace after the closing quote: keep the whole field raw, quotes literal.
+        if (!quoted || !IsBlankAfterQuote(end))
+        {
+            AddField(_fieldStart, end);
+            return;
+        }
+
+        if (!escaped)
+        {
+            AddBounds(_quoteStart, _quoteEnd);
+            return;
+        }
+
+        var raw = _buffer.AsSpan(_quoteStart, _quoteEnd - _quoteStart);
+        if (_scratchLength + raw.Length > _scratch.Length) GrowScratch(_scratchLength + raw.Length);
+        var from = _scratchLength;
+        for (var i = 0; i < raw.Length; i++)
+        {
+            _scratch[_scratchLength++] = raw[i];
+            if (raw[i] == '"') i++; // inside a closed quoted field every quote is doubled
+        }
+        AddBounds(~from, _scratchLength);
+    }
+
+    private bool IsBlankAfterQuote(int end)
+    {
+        var tail = _buffer.AsSpan(_quoteEnd + 1, end - _quoteEnd - 1);
+        return tail.IsEmpty || (_trim && tail.IsWhiteSpace());
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -161,7 +282,12 @@ public sealed class CsvReader : IDisposable
             while (start < end && char.IsWhiteSpace(_buffer[start])) start++;
             while (end > start && char.IsWhiteSpace(_buffer[end - 1])) end--;
         }
+        AddBounds(start, end);
+    }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void AddBounds(int start, int end)
+    {
         var i = 2 * _fieldCount;
         if (i + 1 >= _bounds.Length) GrowBounds();
         _bounds[i] = start;
@@ -175,6 +301,14 @@ public sealed class CsvReader : IDisposable
         _bounds.AsSpan(0, 2 * _fieldCount).CopyTo(bigger);
         ArrayPool<int>.Shared.Return(_bounds);
         _bounds = bigger;
+    }
+
+    private void GrowScratch(int needed)
+    {
+        var bigger = ArrayPool<char>.Shared.Rent(Math.Max(needed, 2 * _scratch.Length));
+        _scratch.AsSpan(0, _scratchLength).CopyTo(bigger);
+        if (_scratch.Length > 0) ArrayPool<char>.Shared.Return(_scratch);
+        _scratch = bigger;
     }
 
     private void CheckLength(int recordStart, int contentEnd)
@@ -198,9 +332,22 @@ public sealed class CsvReader : IDisposable
     {
         if (_start > 0)
         {
-            _buffer.AsSpan(_start, _end - _start).CopyTo(_buffer);
-            _end -= _start;
+            var shift = _start;
+            _buffer.AsSpan(shift, _end - shift).CopyTo(_buffer);
+            _end -= shift;
             _start = 0;
+
+            // Only reached after NeedMore, so the scan state belongs to the in-progress record and moves with it.
+            _pos -= shift;
+            _fieldStart -= shift;
+            _quoteStart -= shift;
+            _quoteEnd -= shift;
+            for (var i = 0; i < 2 * _fieldCount; i += 2)
+            {
+                if (_bounds[i] < 0) continue; // scratch field
+                _bounds[i] -= shift;
+                _bounds[i + 1] -= shift;
+            }
         }
 
         if (_end == _buffer.Length)
@@ -222,7 +369,9 @@ public sealed class CsvReader : IDisposable
         _fieldCount = 0;
         ArrayPool<char>.Shared.Return(_buffer);
         ArrayPool<int>.Shared.Return(_bounds);
+        if (_scratch.Length > 0) ArrayPool<char>.Shared.Return(_scratch);
         _buffer = [];
         _bounds = [];
+        _scratch = [];
     }
 }
