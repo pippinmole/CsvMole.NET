@@ -484,3 +484,4 @@ fabric.properties
 src/CsvMole.Benchmarks/data/
 .superpowers/
 lcov.info
+*.received.cs

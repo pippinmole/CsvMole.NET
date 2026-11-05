@@ -30,6 +30,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <Compile Remove="Snapshots/**" />
+        <None Include="Snapshots/**" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\..\src\CsvMole\CsvMole.csproj" />
         <ProjectReference Include="..\..\src\CsvMole.SourceGenerators\CsvMole.SourceGenerators.csproj"
                           OutputItemType="Analyzer"
