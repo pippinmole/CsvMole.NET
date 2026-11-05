@@ -9,7 +9,7 @@ namespace CsvMole.SourceGenerators.Analysis;
 
 internal static class ParserAnalyzer
 {
-    private static readonly SymbolDisplayFormat TypeFormat =
+    internal static readonly SymbolDisplayFormat TypeFormat =
         SymbolDisplayFormat.FullyQualifiedFormat.AddMiscellaneousOptions(
             SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
@@ -37,6 +37,8 @@ internal static class ParserAnalyzer
         var syntax = (ClassDeclarationSyntax)context.TargetNode;
         var diagnostics = ImmutableArray.CreateBuilder<DiagnosticInfo>();
         var methods = ImmutableArray.CreateBuilder<MethodModel>();
+        // One analysis (and one set of model diagnostics) per distinct model type in the class.
+        var models = new Dictionary<ITypeSymbol, ModelInfo?>(SymbolEqualityComparer.Default);
 
         var containing = new List<ContainingType>();
         for (var parent = syntax.Parent as TypeDeclarationSyntax; parent is not null; parent = parent.Parent as TypeDeclarationSyntax)
@@ -58,7 +60,7 @@ internal static class ParserAnalyzer
                     && method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax(cancellationToken) is MethodDeclarationSyntax declaration
                     && RequiresImplementation(method, declaration))
                 {
-                    methods.Add(AnalyzeMethod(method, declaration, context.SemanticModel.Compilation, diagnostics));
+                    methods.Add(AnalyzeMethod(method, declaration, context.SemanticModel.Compilation, diagnostics, models));
                 }
             }
         }
@@ -95,17 +97,19 @@ internal static class ParserAnalyzer
 
     private static MethodModel AnalyzeMethod(
         IMethodSymbol method, MethodDeclarationSyntax declaration, Compilation compilation,
-        ImmutableArray<DiagnosticInfo>.Builder diagnostics)
+        ImmutableArray<DiagnosticInfo>.Builder diagnostics, Dictionary<ITypeSymbol, ModelInfo?> models)
     {
         string? error = null;
         var isAsync = false;
         var modelType = "";
+        ITypeSymbol? modelSymbol = null;
 
         if (method.ReturnType is INamedTypeSymbol { TypeArguments.Length: 1 } returnType
             && (IsType(returnType.OriginalDefinition, compilation, "System.Collections.Generic.IEnumerable`1")
                 || (isAsync = IsType(returnType.OriginalDefinition, compilation, "System.Collections.Generic.IAsyncEnumerable`1"))))
         {
-            modelType = returnType.TypeArguments[0].ToDisplayString(TypeFormat);
+            modelSymbol = returnType.TypeArguments[0];
+            modelType = modelSymbol.ToDisplayString(TypeFormat);
         }
         else
         {
@@ -149,6 +153,14 @@ internal static class ParserAnalyzer
             diagnostics.Add(DiagnosticInfo.Create("CSVM009", location, method.Name));
         }
 
+        ModelInfo? model = null;
+        if (error is null && modelSymbol is not null && !models.TryGetValue(modelSymbol, out model))
+        {
+            var modelDiagnostics = new List<DiagnosticInfo>();
+            models[modelSymbol] = model = ModelAnalyzer.Analyze(modelSymbol, compilation, modelDiagnostics);
+            diagnostics.AddRange(modelDiagnostics);
+        }
+
         return new MethodModel(
             method.Name,
             AccessModifiers(declaration.Modifiers),
@@ -158,7 +170,7 @@ internal static class ParserAnalyzer
             optionsName,
             cancellationName,
             method.ReturnType.ToDisplayString(TypeFormat),
-            Model: null, // Task 8 fills this for valid methods.
+            model,
             string.Join(" ", declaration.Modifiers.Select(m => m.Text)) + " " + method.ToDisplayString(SignatureFormat));
     }
 

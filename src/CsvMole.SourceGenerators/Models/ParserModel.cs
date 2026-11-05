@@ -31,5 +31,36 @@ internal sealed record MethodModel(
     ModelInfo? Model,
     string Signature);
 
-// Placeholder (controller ruling F); Task 8 replaces it with the analysed model shape.
-internal sealed record ModelInfo;
+/// <param name="Delimiter">From [CsvDelimiter] on the model type, if present.</param>
+internal sealed record ModelInfo(string TypeFullName, char? Delimiter, EquatableArray<MemberInfo> Members, ConstructorInfo Constructor);
+
+/// <param name="Order">The [CsvOrder] index, or -1 when absent.</param>
+/// <param name="UnderlyingTypeFullName">The type to parse: T for Nullable&lt;T&gt;, the enum, or the ISpanParsable type.</param>
+/// <param name="IsNullable">True only for Nullable&lt;T&gt; members (string nullability is in <see cref="ParseKind"/>).</param>
+/// <param name="CtorParameterIndex">Index in the chosen constructor, or -1 for initializer-assigned members.</param>
+/// <param name="IsRequired">A C# <c>required</c> member: it must also be set in the object initializer unless
+/// <see cref="ConstructorInfo.SetsRequiredMembers"/>.</param>
+internal sealed record MemberInfo(
+    string Name,
+    string TypeFullName,
+    string? ColumnName,
+    int Order,
+    ParseKind Kind,
+    string? UnderlyingTypeFullName,
+    bool IsNullable,
+    string? ConverterTypeFullName,
+    MemberAssignment Assignment,
+    int CtorParameterIndex,
+    bool IsRequired);
+
+// Nullable<T> is represented by MemberInfo.IsNullable on the inner kind.
+internal enum ParseKind { String, NullableString, SpanParsable, Enum, Converter }
+
+internal enum MemberAssignment { Constructor, Initializer }
+
+/// <param name="ParameterTypeFullNames">In order; empty means the parameterless constructor.</param>
+/// <param name="ParameterNames">Unescaped names, parallel to the types. Unmapped optional parameters are left out of
+/// the call, so the emitter passes arguments by name.</param>
+/// <param name="SetsRequiredMembers">The constructor has [SetsRequiredMembers].</param>
+internal sealed record ConstructorInfo(
+    EquatableArray<string> ParameterTypeFullNames, EquatableArray<string> ParameterNames, bool SetsRequiredMembers);

@@ -11,7 +11,7 @@ public class ParserDiagnosticsTests
         using System.Threading;
         using CsvMole;
 
-        public sealed class Model { public string? Name { get; set; } }
+        public sealed class Model { [CsvColumn("name")] public string? Name { get; set; } }
 
         """;
 

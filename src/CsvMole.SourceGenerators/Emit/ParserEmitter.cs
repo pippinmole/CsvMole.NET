@@ -43,11 +43,8 @@ internal static class ParserEmitter
         writer.WriteLine(method.Signature);
         writer.WriteLine("{");
         writer.Indent++;
-        if (method.Model is null)
-        {
-            EmitStubBody(writer);
-        }
-        // Task 9: else EmitBody(writer, method, method.Model);
+        // Task 9: emit the real body when method.Model is non-null; until then every method is a stub.
+        EmitStubBody(writer);
         CloseBlock(writer);
     }
 
