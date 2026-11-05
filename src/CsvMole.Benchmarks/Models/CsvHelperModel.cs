@@ -1,14 +1,13 @@
-﻿using CsvHelper.Configuration.Attributes;
-using CsvHelper.TypeConversion;
+﻿using CsvHelper;
 
 namespace CsvMole.Benchmarks.Models;
 
-public class CsvHelperModel
+[CsvRecord]
+public partial class CsvHelperModel
 {
-    [Index(0)]
+    [CsvColumn(Index = 0)]
     public string Id { get; set; } = null!;
 
-    [Index(1)]
-    [TypeConverter(typeof(DateTimeConverter))]
+    [CsvColumn(Index = 1)]
     public DateTime? Date { get; set; }
 }
