@@ -479,3 +479,8 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 
 # End of https://www.toptal.com/developers/gitignore/api/rider,csharp
+
+# Benchmark input data and agent workspace
+src/CsvMole.Benchmarks/data/
+.superpowers/
+lcov.info

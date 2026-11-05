@@ -12,8 +12,6 @@
         <LangVersion>preview</LangVersion>
         <IsRoslynComponent>true</IsRoslynComponent>
 
-        <!-- default roslyn version -->
-        <ROSLYN_VERSION Condition="'$(ROSLYN_VERSION)' == ''">4.5</ROSLYN_VERSION>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
@@ -29,10 +27,4 @@
         </PackageReference>
     </ItemGroup>
 
-    <!--
-    This ensures the library will be packaged as a source generator when we use `dotnet pack`
-    -->
-    <ItemGroup>
-        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/roslyn$(ROSLYN_VERSION)/dotnet/cs" Visible="false" />
-    </ItemGroup>
 </Project>

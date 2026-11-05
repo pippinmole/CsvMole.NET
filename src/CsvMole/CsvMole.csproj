@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <EnablePackageValidation>true</EnablePackageValidation>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="CsvMole.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CsvMole.SourceGenerators\CsvMole.SourceGenerators.csproj"
+                          PrivateAssets="all"
+                          ReferenceOutputAssembly="false" />
+    </ItemGroup>
+
+    <!-- Ships the source generator inside this package as an analyzer. -->
+    <ItemGroup>
+        <None Include="..\CsvMole.SourceGenerators\bin\$(Configuration)\netstandard2.0\CsvMole.SourceGenerators.dll"
+              Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    </ItemGroup>
+</Project>
