@@ -186,10 +186,13 @@ internal static class ParserEmitter
                 var parse = m.Kind switch
                 {
                     ParseKind.Enum => $"global::System.Enum.TryParse<{m.UnderlyingTypeFullName}>(__f, true, out var __p)",
+                    // Same results as float/double.TryParse, with a faster path for plain decimals.
+                    ParseKind.SpanParsable when m.UnderlyingTypeFullName == "float" => "global::CsvMole.CsvNumberParser.TryParseSingle(__f, __culture, out var __p)",
+                    ParseKind.SpanParsable when m.UnderlyingTypeFullName == "double" => "global::CsvMole.CsvNumberParser.TryParseDouble(__f, __culture, out var __p)",
                     ParseKind.SpanParsable => $"__TryParse<{m.UnderlyingTypeFullName}>(__f, __culture, out var __p)",
                     _ => $"{names.Converter(m.ConverterTypeFullName!)}.TryParse(__f, __culture, out var __p)",
                 };
-                if (m.Kind == ParseKind.SpanParsable) names.UsesSpanParsable = true;
+                if (parse.StartsWith("__TryParse", global::System.StringComparison.Ordinal)) names.UsesSpanParsable = true;
                 // A converter decides for itself what an empty field means.
                 var emptyIsNull = m.IsNullable && m.Kind != ParseKind.Converter;
                 if (emptyIsNull) w.WriteLine($"if (__f.IsEmpty) {v} = null;");

@@ -162,4 +162,30 @@ public class CsvReaderTests
         reader.Dispose();
         Assert.DoesNotThrow(() => text.Peek());
     }
+
+    // Long random input read in one go (32-char vector blocks) must match reading it one char per refill (scalar tail).
+    [Test]
+    public void LongRandomInput_VectorScanMatchesScalar([Range(1, 20)] int seed, [Values(false, true)] bool trim)
+    {
+        string[] pieces = ["a", "bc", "a longer value with no specials", " ", ",", ",", ";", "\"q\"", "\"x,y\"", "\"e\"\"s\"",
+            "\r\n", "\n", "\r", "\"multi\r\nline\"", "  \"t\"  ", "\"", "\"\""];
+        var random = new Random(seed);
+        var text = new System.Text.StringBuilder();
+        while (text.Length < 5000) text.Append(pieces[random.Next(pieces.Length)]);
+        var options = new CsvOptions { TrimFields = trim, SkipBlankLines = seed % 2 == 0 };
+
+        Assert.That(Outcome(text.ToString(), 4096, int.MaxValue, options), Is.EqualTo(Outcome(text.ToString(), 4, 1, options)));
+    }
+
+    private static string Outcome(string input, int size, int chunk, CsvOptions options)
+    {
+        try
+        {
+            return string.Join("\n", ReadAll(input, size, chunk, options).Select(r => string.Join("|", r)));
+        }
+        catch (CsvParseException e)
+        {
+            return "error: " + e.Message;
+        }
+    }
 }

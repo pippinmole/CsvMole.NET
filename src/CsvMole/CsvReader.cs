@@ -1,5 +1,8 @@
 using System.Buffers;
+using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 
 namespace CsvMole;
 
@@ -10,7 +13,6 @@ namespace CsvMole;
 public sealed class CsvReader : IDisposable
 {
     private const int DefaultBufferSize = 16 * 1024;
-    private static readonly SearchValues<char> QuotedSpecial = SearchValues.Create("\"\r\n");
 
     private readonly TextReader _reader;
     private readonly char _delimiter;
@@ -46,6 +48,12 @@ public sealed class CsvReader : IDisposable
     private int _quotedLines;  // line breaks inside quotes, so LineNumber stays physical
 
     private enum QuoteState { None, Inside, Closed }
+
+    // Bitmask of the specials (delimiter, quote, CR, LF) in the 32 chars at _maskPos, so the buffer is classified once per
+    // 32-char block instead of once per field. Bits below the scan point are ignored. Reset by PrepareRefill.
+    private const int NoMask = -64;
+    private int _maskPos = NoMask;
+    private uint _mask;
 
     public CsvReader(TextReader reader, CsvOptions options, char delimiter)
         : this(reader, options, delimiter, DefaultBufferSize) { }
@@ -164,8 +172,10 @@ public sealed class CsvReader : IDisposable
             {
                 if (_quote == QuoteState.Inside)
                 {
-                    var qi = _buffer.AsSpan(_pos, _end - _pos).IndexOfAny(QuotedSpecial);
-                    if (qi < 0)
+                    // Delimiters are literal inside quotes, so skip them.
+                    var q = NextSpecial(_pos);
+                    while (q >= 0 && _buffer[q] == _delimiter) q = NextSpecial(q + 1);
+                    if (q < 0)
                     {
                         CheckLength(recordStart, _end);
                         _pos = _end;
@@ -174,7 +184,6 @@ public sealed class CsvReader : IDisposable
                             CsvErrors.Truncate(_buffer.AsSpan(recordStart, _end - recordStart)), CsvErrorReason.UnterminatedQuote));
                     }
 
-                    var q = _pos + qi;
                     var qc = _buffer[q];
                     if (qc != '"')
                     {
@@ -193,6 +202,13 @@ public sealed class CsvReader : IDisposable
                         _hasEscape = true;
                         _pos = q + 2;
                     }
+                    else if (q + 1 < _end && _buffer[q + 1] == _delimiter && !_hasEscape)
+                    {
+                        // Fast path: closing quote right before the delimiter, no "" inside (as EndField would do).
+                        _quote = QuoteState.None;
+                        AddBounds(_quoteStart, q);
+                        _fieldStart = _pos = q + 2;
+                    }
                     else
                     {
                         _quote = QuoteState.Closed;
@@ -202,8 +218,8 @@ public sealed class CsvReader : IDisposable
                     continue;
                 }
 
-                var idx = _buffer.AsSpan(_pos, _end - _pos).IndexOfAny(_special);
-                if (idx < 0)
+                var p = NextSpecial(_pos);
+                if (p < 0)
                 {
                     CheckLength(recordStart, _end);
                     _pos = _end;
@@ -217,11 +233,11 @@ public sealed class CsvReader : IDisposable
                     return Complete(_end);
                 }
 
-                var p = _pos + idx;
                 var c = _buffer[p];
                 if (c == _delimiter)
                 {
-                    EndField(p);
+                    if (_quote == QuoteState.None && !_trim) AddBounds(_fieldStart, p); // fast path: plain field
+                    else EndField(p);
                     _fieldStart = _pos = p + 1;
                 }
                 else if (c == '"')
@@ -261,6 +277,50 @@ public sealed class CsvReader : IDisposable
                 }
             }
         }
+    }
+
+    /// <summary>Absolute index of the first special char at or after <paramref name="pos"/> in the buffered data, or -1.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int NextSpecial(int pos)
+    {
+        var offset = pos - _maskPos;
+        if ((uint)offset < 32)
+        {
+            var m = _mask & (uint.MaxValue << offset);
+            if (m != 0) return _maskPos + BitOperations.TrailingZeroCount(m);
+            pos = _maskPos + 32;
+        }
+        return NextSpecialSlow(pos);
+    }
+
+    private int NextSpecialSlow(int pos)
+    {
+        if (Vector256.IsHardwareAccelerated)
+        {
+            ref var data = ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetArrayDataReference(_buffer));
+            var delimiter = Vector256.Create((ushort)_delimiter);
+            var quote = Vector256.Create((ushort)'"');
+            var cr = Vector256.Create((ushort)'\r');
+            var lf = Vector256.Create((ushort)'\n');
+            for (; pos + 32 <= _end; pos += 32)
+            {
+                var a = Vector256.LoadUnsafe(ref data, (nuint)pos);
+                var b = Vector256.LoadUnsafe(ref data, (nuint)pos + 16);
+                var ma = Vector256.Equals(a, delimiter) | Vector256.Equals(a, quote) | Vector256.Equals(a, cr) | Vector256.Equals(a, lf);
+                var mb = Vector256.Equals(b, delimiter) | Vector256.Equals(b, quote) | Vector256.Equals(b, cr) | Vector256.Equals(b, lf);
+                var m = ma.ExtractMostSignificantBits() | (mb.ExtractMostSignificantBits() << 16);
+                if (m != 0)
+                {
+                    _maskPos = pos;
+                    _mask = m;
+                    return pos + BitOperations.TrailingZeroCount(m);
+                }
+            }
+        }
+
+        // Fewer than 32 chars buffered past pos (or no 256-bit vectors).
+        var idx = _buffer.AsSpan(pos, _end - pos).IndexOfAny(_special);
+        return idx < 0 ? -1 : pos + idx;
     }
 
     // RFC 4180: a quote opens a quoted field only as its first char; with TrimFields, leading whitespace is skipped first.
@@ -369,6 +429,7 @@ public sealed class CsvReader : IDisposable
 
     private void PrepareRefill()
     {
+        _maskPos = NoMask;
         if (_start > 0)
         {
             var shift = _start;

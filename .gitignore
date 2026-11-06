@@ -481,7 +481,10 @@ fabric.properties
 # End of https://www.toptal.com/developers/gitignore/api/rider,csharp
 
 # Benchmark input data and agent workspace
-src/CsvMole.Benchmarks/data/
+src/CsvMole.Benchmarks/[Dd]ata/*.csv
 .superpowers/
 lcov.info
 *.received.cs
+
+# Benchmark datasets downloaded on first run
+src/CsvMole.Benchmarks/[Dd]ata/*.csv
