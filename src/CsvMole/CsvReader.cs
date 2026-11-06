@@ -244,6 +244,10 @@ public sealed class CsvReader : IDisposable
                 {
                     if (_quote == QuoteState.None && IsOpeningQuote(p))
                     {
+                        // Entered at quotes only: measured, on plain-only data the extra call costs more than it saves.
+                        _pos = p;
+                        ScanSimpleFields();
+                        if (_pos != p) continue; // otherwise not a simple quoted field: the state machine takes it
                         _quote = QuoteState.Inside;
                         _quoteStart = p + 1;
                     }
@@ -291,6 +295,94 @@ public sealed class CsvReader : IDisposable
             pos = _maskPos + 32;
         }
         return NextSpecialSlow(pos);
+    }
+
+    /// <summary>
+    /// Hot loop for runs of plain fields and simple quoted fields (<c>"..."</c> right before a delimiter, no <c>""</c> or
+    /// line break inside; with TrimFields, whitespace allowed around both), with the scan state in locals so the JIT
+    /// keeps it in registers instead of re-reading fields after every array write. Stops at anything else (line break,
+    /// escape, buffer end) without consuming it, leaving <see cref="_pos"/> for the general loop in
+    /// <see cref="TryReadRecord"/>. Gives the same fields as that loop. Requires no open quote.
+    /// </summary>
+    private void ScanSimpleFields()
+    {
+        var buffer = _buffer;
+        var bounds = _bounds;
+        var delimiter = _delimiter;
+        var trim = _trim;
+        var end = _end;
+        var pos = _pos;
+        var fieldStart = _fieldStart;
+        var count = _fieldCount;
+        var maskPos = _maskPos;
+        var mask = _mask;
+
+        while (true)
+        {
+            var p = Next(pos);
+            if (p < 0) break;
+            var c = buffer[p];
+            if (c == delimiter)
+            {
+                var s = fieldStart;
+                var e = p;
+                if (trim)
+                {
+                    while (s < e && char.IsWhiteSpace(buffer[s])) s++;
+                    while (e > s && char.IsWhiteSpace(buffer[e - 1])) e--;
+                }
+                Add(s, e);
+                fieldStart = pos = p + 1;
+                continue;
+            }
+            if (c != '"' || (p != fieldStart && !(trim && buffer.AsSpan(fieldStart, p - fieldStart).IsWhiteSpace()))) break;
+
+            var q = Next(p + 1);
+            while (q >= 0 && buffer[q] == delimiter) q = Next(q + 1);
+            if (q < 0 || buffer[q] != '"') break;
+            var after = q + 1;
+            // Line breaks are whitespace too but end the record.
+            if (trim) while (after < end && buffer[after] is var w && w != delimiter && w is not ('\r' or '\n') && char.IsWhiteSpace(w)) after++;
+            // Not a simple quoted field: the general loop rescans it from the opening quote.
+            if (after >= end || buffer[after] != delimiter) break;
+            Add(p + 1, q);
+            fieldStart = pos = after + 1;
+        }
+
+        _pos = pos;
+        _fieldStart = fieldStart;
+        _fieldCount = count;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        int Next(int at)
+        {
+            var offset = at - maskPos;
+            if ((uint)offset < 32)
+            {
+                var m = mask & (uint.MaxValue << offset);
+                if (m != 0) return maskPos + BitOperations.TrailingZeroCount(m);
+                at = maskPos + 32;
+            }
+            var found = NextSpecialSlow(at);
+            maskPos = _maskPos;
+            mask = _mask;
+            return found;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void Add(int start, int stop)
+        {
+            var i = 2 * count;
+            if ((uint)(i + 1) >= (uint)bounds.Length)
+            {
+                _fieldCount = count;
+                GrowBounds();
+                bounds = _bounds;
+            }
+            bounds[i] = start;
+            bounds[i + 1] = stop;
+            count++;
+        }
     }
 
     private int NextSpecialSlow(int pos)
