@@ -20,9 +20,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
+          dotnet-version: 10.0.x
 
       - name: Restore dependencies
         run: dotnet restore
@@ -31,12 +29,20 @@ jobs:
         run: dotnet build --no-restore
 
       - name: Test
-        run: dotnet test --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.info ./test/CsvMole.SourceGenerators.Tests
+        run: dotnet test --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.info
         
+      - name: Install Native AOT prerequisites
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Native AOT publish and run
+        run: |
+          dotnet publish test/CsvMole.AotTests -c Release -o aot-out
+          ./aot-out/CsvMole.AotTests
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }} # Not required for public repos
-          file: ./CsvMole.SourceGenerators.Tests/lcov.info # Path to the coverage file
+          files: ./test/CsvMole.Tests/lcov.info,./test/CsvMole.SourceGenerators.Tests/lcov.info # Path to the coverage file
           flags: unittests # Optional, flags help differentiate coverage reports
           name: codecov-umbrella # Optional, name of the upload
