@@ -38,6 +38,11 @@ internal static class ReaderCases
         yield return Case(" \"a\"  ,b", Trim, R(F("a", "b")));
         yield return Case("\"a,b\"x,c", null, R(F("\"a,b\"x", "c")));
         yield return Case("\"ab\ncdef\"\nx", Max10, R(F("ab\ncdef"), F("x")));
+        // Quoted-field fast path: line break right after a (padded) closing quote, and runs of quoted fields.
+        yield return Case(" \"a\" \n \"b\" , c ", Trim, R(F("a"), F("b", "c")));
+        yield return Case("\"a\",\"b\",\"c\"\n\"d\",e", null, R(F("a", "b", "c"), F("d", "e")));
+        yield return Case(" \"a\" x,b", Trim, R(F("\"a\" x", "b")));
+        yield return Case("\"a\" ,b", null, R(F("\"a\" ", "b")));
     }
 
     private static TestCaseData Case(string input, CsvOptions? options, string[][] expected) =>
