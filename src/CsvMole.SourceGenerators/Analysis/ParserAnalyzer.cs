@@ -34,7 +34,7 @@ internal static class ParserAnalyzer
     public static ParserModel Analyze(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken)
     {
         var type = (INamedTypeSymbol)context.TargetSymbol;
-        var syntax = (ClassDeclarationSyntax)context.TargetNode;
+        var syntax = (TypeDeclarationSyntax)context.TargetNode;
         var diagnostics = ImmutableArray.CreateBuilder<DiagnosticInfo>();
         var methods = ImmutableArray.CreateBuilder<MethodModel>();
         // One analysis (and one set of model diagnostics) per distinct model type in the class.
@@ -81,8 +81,9 @@ internal static class ParserAnalyzer
             diagnostics.ToImmutable().AsEquatableArray());
     }
 
-    private static string? ClassError(ClassDeclarationSyntax syntax)
+    private static string? ClassError(TypeDeclarationSyntax syntax)
     {
+        if (syntax is not ClassDeclarationSyntax) return "must be a partial class";
         if (!syntax.Modifiers.Any(SyntaxKind.PartialKeyword)) return "must be declared partial";
         if (syntax.TypeParameterList is not null) return "must not be generic";
         if (syntax.Modifiers.Any(SyntaxKind.FileKeyword)) return "must not be file-local";

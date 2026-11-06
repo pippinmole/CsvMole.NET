@@ -1,5 +1,8 @@
+using System.ComponentModel;
+
 namespace CsvMole;
 
+[EditorBrowsable(EditorBrowsableState.Never)]
 public static class CsvHeader
 {
     /// <summary>

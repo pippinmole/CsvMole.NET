@@ -37,6 +37,15 @@ public class ParserDiagnosticsTests
         Assert.That(Ids(gen), Is.EqualTo(new[] { "CSVM001" }));
     }
 
+    [TestCase("partial record P")]
+    [TestCase("partial struct P")]
+    [TestCase("partial interface P")]
+    public void NonClassParser_CSVM001(string declaration)
+    {
+        var (gen, _, _) = GeneratorHarness.Run(Usings + $"[CsvParser] public {declaration} {{ public partial IEnumerable<Model> Parse(TextReader reader); }}");
+        Assert.That(Ids(gen), Is.EqualTo(new[] { "CSVM001" }));
+    }
+
     [Test]
     public void GenericParserClass_CSVM001()
     {

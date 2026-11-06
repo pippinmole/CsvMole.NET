@@ -41,6 +41,7 @@ public partial class P
         }
         while (await __r.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (__TryBind_Person(__r, __map, out var __m)) yield return __m;
         }
     }

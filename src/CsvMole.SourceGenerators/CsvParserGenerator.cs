@@ -16,7 +16,7 @@ public sealed class CsvParserGenerator : IIncrementalGenerator
         var parsers = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 "CsvMole.CsvParserAttribute",
-                static (node, _) => node is ClassDeclarationSyntax,
+                static (node, _) => node is TypeDeclarationSyntax,
                 ParserAnalyzer.Analyze)
             .WithTrackingName(ParserModelStep);
 

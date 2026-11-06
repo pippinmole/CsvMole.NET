@@ -1,3 +1,4 @@
+<a id="readme-top"></a>
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
@@ -77,8 +78,10 @@ using (var reader = new StreamReader("orders.csv"))
 - `[CsvColumn("name")]` maps a member to a header column (case-insensitive).
 - `[CsvOrder(n)]` maps a member to a zero-based column position.
 - `[CsvDelimiter(';')]` on the model sets its delimiter (a `char`; default `,`).
-- `[CsvConverter(typeof(C))]` uses a custom `CsvConverter<T>`.
+- `[CsvConverter(typeof(C))]` uses a custom `CsvConverter<T>`. For a nullable member, an empty field is passed to the converter (not turned into `null`); a missing column gives `null`.
 - Models can be records, classes with constructors (mark one with `[CsvConstructor]` if ambiguous), or use `required` and `init` members.
+
+The returned `IEnumerable<T>` / `IAsyncEnumerable<T>` streams the reader and can be enumerated only once.
 
 Parsed automatically: `string`, numbers, `bool`, `char`, `DateTime`, `DateTimeOffset`, `DateOnly`, `TimeOnly`,
 `TimeSpan`, `Guid`, enums, `Nullable<T>` of these, and any `ISpanParsable<T>`.

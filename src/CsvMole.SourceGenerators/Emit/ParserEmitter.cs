@@ -99,6 +99,7 @@ internal static class ParserEmitter
         w.WriteLine($"while ({Read()})");
         w.WriteLine("{");
         w.Indent++;
+        if (a) w.WriteLine($"{(method.CancellationParamName is { } ct ? Identifier(ct) : "default(global::System.Threading.CancellationToken)")}.ThrowIfCancellationRequested();");
         w.WriteLine($"if (__TryBind_{id}(__r, __map, out var __m)) yield return __m;");
         CloseBlock(w);
     }

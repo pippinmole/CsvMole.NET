@@ -248,7 +248,7 @@ Namespace `CsvMole`. *(My call; the current namespace is `CsvMole.Abstractions.*
 - It exposes the current record as field spans plus the record's starting line number. Field boundaries are stored in
   a reused `int[]`, so there is no allocation per row on the fast path.
 - `Read()` advances one record. `ReadAsync(CancellationToken)` refills the buffer with
-  `TextReader.ReadAsync(Memory<char>, ct)` when needed. Cancellation is checked once per buffer refill.
+  `TextReader.ReadAsync(Memory<char>, ct)` when needed. The token is checked once per buffer refill and once per row (`ThrowIfCancellationRequested()` at the top of each loop iteration), so cancelling stops the stream promptly even when rows are buffered.
 - **Async constraint:** spans can't live across an `await`. The generated async method does
   `while (await reader.ReadAsync(ct))`, then calls a **synchronous** generated method to bind the row, which receives
   the reader and reads spans. The binding code is shared between the sync and async methods.

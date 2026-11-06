@@ -43,4 +43,21 @@ public class AsyncParseTests
             await foreach (var _ in Parser.ParseAgedAsync(new StringReader("Id,Age\n1,2"), null, cts.Token)) { }
         });
     }
+
+    [Test]
+    public async Task Async_CancelAfterFirstRow_StopsPromptly()
+    {
+        var csv = "Id,Age\n" + string.Join("\n", Enumerable.Range(0, 1000).Select(i => $"{i},1"));
+        using var cts = new CancellationTokenSource();
+        var received = 0;
+        await Assert.ThatAsync(async () =>
+        {
+            await foreach (var _ in Parser.ParseAgedAsync(new StringReader(csv)).WithCancellation(cts.Token))
+            {
+                received++;
+                cts.Cancel();
+            }
+        }, Throws.InstanceOf<OperationCanceledException>());
+        Assert.That(received, Is.LessThan(10));
+    }
 }
