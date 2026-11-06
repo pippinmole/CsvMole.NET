@@ -154,6 +154,7 @@ namespace CsvMole.Tests.EndToEnd
         public partial IEnumerable<Semi> ParseSemi(TextReader reader, CsvOptions? options = null);
         public partial IEnumerable<Pair> ParsePairs(TextReader reader, CsvOptions? options = null);
         public partial IEnumerable<Pair> ParsePairsDefault(TextReader reader);
+        public partial IEnumerable<Pair> ParsePairsFromString(StringReader reader, CsvOptions? options = null);
         public partial IEnumerable<Named> ParseNamed(TextReader reader, CsvOptions? options = null);
         public partial IEnumerable<KeywordModel> ParseKeyword(TextReader reader, CsvOptions? options = null);
     }

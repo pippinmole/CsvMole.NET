@@ -93,6 +93,13 @@ public class SyncParseTests
     }
 
     [Test]
+    public void TextReaderSubclassParameter()
+    {
+        var rows = Parser.ParsePairsFromString(R("1,2\n3,4"), NoHeader).ToList();
+        Assert.That(rows.Select(p => (p.A, p.B)), Is.EqualTo(new[] { (1, 2), (3, 4) }));
+    }
+
+    [Test]
     public void ExtraColumnsIgnored()
     {
         var m = Parser.ParsePairs(R("1,2,3,4"), NoHeader).Single();

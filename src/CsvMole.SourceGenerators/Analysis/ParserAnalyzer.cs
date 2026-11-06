@@ -121,9 +121,9 @@ internal static class ParserAnalyzer
 
         var parameters = method.Parameters;
         if (parameters.Length == 0 || parameters[0].RefKind != RefKind.None
-            || !IsType(parameters[0].Type, compilation, "System.IO.TextReader"))
+            || !IsTextReader(parameters[0].Type, compilation))
         {
-            error ??= "the first parameter must be a System.IO.TextReader";
+            error ??= "the first parameter must be a System.IO.TextReader or a type derived from it";
         }
 
         string? optionsName = null, cancellationName = null;
@@ -186,6 +186,16 @@ internal static class ParserAnalyzer
 
     private static bool IsType(ITypeSymbol type, Compilation compilation, string metadataName) =>
         SymbolEqualityComparer.Default.Equals(type, compilation.GetTypeByMetadataName(metadataName));
+
+    private static bool IsTextReader(ITypeSymbol type, Compilation compilation)
+    {
+        var textReader = compilation.GetTypeByMetadataName("System.IO.TextReader");
+        for (var t = type; t is not null; t = t.BaseType)
+        {
+            if (SymbolEqualityComparer.Default.Equals(t, textReader)) return true;
+        }
+        return false;
+    }
 
     private static string AccessModifiers(SyntaxTokenList modifiers) =>
         string.Join(" ", modifiers
