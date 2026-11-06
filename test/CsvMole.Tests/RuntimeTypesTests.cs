@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Globalization;
 
 namespace CsvMole.Tests;
@@ -5,6 +6,23 @@ namespace CsvMole.Tests;
 public class RuntimeTypesTests
 {
     private static CsvError Err(CsvErrorReason r = CsvErrorReason.ParseFailed) => new(7, 2, "Age", "Age", "abc", r);
+
+    [CsvDelimiter(';')]
+    private sealed class Annotated
+    {
+        [CsvOrder(3), CsvColumn("Name"), CsvConverter(typeof(string))] public string? Value { get; set; }
+    }
+
+    // Generated code reads attribute arguments at compile time; reflection users get the same values at runtime.
+    [Test]
+    public void Attributes_ExposeConstructorArguments()
+    {
+        var property = typeof(Annotated).GetProperty(nameof(Annotated.Value))!;
+        Assert.That(typeof(Annotated).GetCustomAttribute<CsvDelimiterAttribute>()!.Delimiter, Is.EqualTo(';'));
+        Assert.That(property.GetCustomAttribute<CsvOrderAttribute>()!.Order, Is.EqualTo(3));
+        Assert.That(property.GetCustomAttribute<CsvColumnAttribute>()!.Name, Is.EqualTo("Name"));
+        Assert.That(property.GetCustomAttribute<CsvConverterAttribute>()!.ConverterType, Is.EqualTo(typeof(string)));
+    }
 
     [Test]
     public void Options_Defaults()

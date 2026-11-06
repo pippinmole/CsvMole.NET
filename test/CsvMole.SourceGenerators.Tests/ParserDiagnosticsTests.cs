@@ -179,6 +179,86 @@ public class ParserDiagnosticsTests
         TestContext.Out.WriteLine(generated);
     }
 
+    [TestCase("partial class Outer<T>")]
+    [TestCase("class Outer")]
+    public void ParserInGenericOrNonPartialContainingType_CSVM001(string outer)
+    {
+        var (gen, _, _) = GeneratorHarness.Run(Usings + $$"""
+            public {{outer}}
+            {
+                [CsvParser]
+                public partial class P { public partial IEnumerable<Model> Parse(TextReader reader); }
+            }
+            """);
+        Assert.That(Ids(gen), Is.EqualTo(new[] { "CSVM001" }));
+    }
+
+    [TestCase("partial record Outer")]
+    [TestCase("partial record struct Outer")]
+    [TestCase("partial struct Outer")]
+    public void ParserNestedInRecordOrStruct_Compiles(string outer)
+    {
+        var (gen, comp, _) = GeneratorHarness.Run(Usings + $$"""
+            public {{outer}}
+            {
+                [CsvParser]
+                public partial class P { public partial IEnumerable<Model> Parse(TextReader reader); }
+            }
+            """);
+        Assert.That(gen, Is.Empty, string.Join("\n", gen));
+        Assert.That(comp, Is.Empty, string.Join("\n", comp));
+    }
+
+    // Void partials the compiler requires to be implemented are parser methods, so they get CSVM002.
+    [TestCase("public partial void Parse(TextReader reader);")]
+    [TestCase("private partial void Parse(TextReader reader);")]
+    public void VoidPartialRequiringImplementation_CSVM002(string method) => AssertDiagnostics($$"""
+        [CsvParser]
+        public partial class P { {{method}} }
+        """, "CSVM002");
+
+    // The compiler also reports CS8797 (out params need an accessibility modifier); only the generator side is asserted.
+    [Test]
+    public void VoidPartialWithOutParam_CSVM002()
+    {
+        var (gen, _, _) = GeneratorHarness.Run(Usings + """
+            [CsvParser]
+            public partial class P { partial void Parse(TextReader reader, out int count); }
+            """);
+        Assert.That(Ids(gen), Is.EqualTo(new[] { "CSVM002" }));
+    }
+
+    [TestCase("public partial IEnumerable<Model> Parse();")]
+    [TestCase("public partial IEnumerable<Model> Parse(ref TextReader reader);")]
+    [TestCase("public partial IEnumerable<Model> Parse(TextReader reader, CsvOptions a, CsvOptions b);")]
+    [TestCase("public partial IAsyncEnumerable<Model> Parse(TextReader reader, CancellationToken a, CancellationToken b);")]
+    [TestCase("public partial IAsyncEnumerable<Model> Parse(TextReader reader, ref CancellationToken token);")]
+    [TestCase("public partial Model[] Parse(TextReader reader);")]
+    [TestCase("public partial string Parse(TextReader reader);")]
+    public void InvalidSignature_CSVM002(string method) => AssertDiagnostics($$"""
+        [CsvParser]
+        public partial class P { {{method}} }
+        """, "CSVM002");
+
+    [Test]
+    public void ModelsWithClashingSanitisedNames_Compile()
+    {
+        // A.B_C and A_B.C both sanitise to A_B_C; the generated helper names must still be distinct.
+        var (gen, comp, _) = GeneratorHarness.Run(Usings + """
+            namespace A { public class B_C { [CsvOrder(0)] public int X { get; set; } } }
+            namespace A_B { public class C { [CsvOrder(0)] public string? Y { get; set; } } }
+
+            [CsvParser]
+            public partial class P
+            {
+                public partial IEnumerable<A.B_C> ParseFirst(TextReader reader);
+                public partial IEnumerable<A_B.C> ParseSecond(TextReader reader);
+            }
+            """);
+        Assert.That(gen, Is.Empty, string.Join("\n", gen));
+        Assert.That(comp, Is.Empty, string.Join("\n", comp));
+    }
+
     [Test]
     public void PipelineIsCacheable()
     {

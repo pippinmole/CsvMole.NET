@@ -144,6 +144,19 @@ public class CsvReaderTests
         Assert.That(ReadAll(" a , b ", size, chunk, new CsvOptions { TrimFields = true }),
             Is.EqualTo(new[] { new[] { "a", "b" } }));
 
+    [TestCase('"')]
+    [TestCase('\r')]
+    [TestCase('\n')]
+    public void Ctor_InvalidDelimiter_Throws(char delimiter) =>
+        Assert.Throws<ArgumentException>(() => new CsvReader(new StringReader("a"), Defaults, delimiter));
+
+    [Test]
+    public void Ctor_NullArguments_Throw()
+    {
+        Assert.Throws<ArgumentNullException>(() => new CsvReader(null!, Defaults, ','));
+        Assert.Throws<ArgumentNullException>(() => new CsvReader(new StringReader("a"), null!, ','));
+    }
+
     [Test]
     public void Indexer_OutOfRange_Throws()
     {

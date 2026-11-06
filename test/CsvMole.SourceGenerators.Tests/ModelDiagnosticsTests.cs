@@ -182,6 +182,105 @@ public class ModelDiagnosticsTests
         }
         """);
 
+    [TestCase("public abstract class M { [CsvOrder(0)] public int A { get; set; } }")]
+    [TestCase("public interface M { [CsvOrder(0)] int A { get; set; } }")]
+    [TestCase("public class M { private M() { } [CsvOrder(0)] public int A { get; set; } }")]
+    [TestCase("public class M { [CsvConstructor] public M() { } [CsvConstructor] public M(int a) { A = a; } [CsvOrder(0)] public int A { get; set; } }")]
+    public void UnconstructibleModel_CSVM007(string model) => AssertDiagnostics(model, "CSVM007");
+
+    [Test]
+    public void ModelFromMetadata_DiagnosticHasNoSourceLocation()
+    {
+        // string has several public constructors and none is marked, so it cannot be a model.
+        var (gen, _, _) = GeneratorHarness.Run("""
+            using System.Collections.Generic;
+            using System.IO;
+            using CsvMole;
+
+            [CsvParser]
+            public partial class P { public partial IEnumerable<string> Parse(TextReader reader); }
+            """);
+        Assert.That(gen.Select(d => d.Id), Is.EqualTo(new[] { "CSVM007" }));
+        Assert.That(gen.Single().Location, Is.EqualTo(Location.None));
+    }
+
+    [TestCase("null!", "?")]
+    [TestCase("typeof(string)", "string")]
+    [TestCase("typeof(G<>)", "G<>")]
+    [TestCase("typeof(Abs)", "Abs")]
+    public void InvalidConverterType_CSVM008(string converter, string reportedName)
+    {
+        var gen = AssertDiagnostics($$"""
+            public class G<T> : CsvConverter<int>
+            {
+                public override bool TryParse(ReadOnlySpan<char> value, CultureInfo culture, out int result) { result = 0; return true; }
+            }
+            public abstract class Abs : CsvConverter<int> { }
+            public class M { [CsvOrder(0), CsvConverter({{converter}})] public int A { get; set; } }
+            """, "CSVM008");
+        Assert.That(gen.Single().GetMessage(), Does.Contain(reportedName));
+    }
+
+    [Test]
+    public void ArrayMember_CSVM003() => AssertDiagnostics("""
+        public class M { [CsvOrder(0)] public int[]? A { get; set; } }
+        """, "CSVM003");
+
+    [Test]
+    public void TypeSpanParsableForAnotherType_CSVM003() => AssertDiagnostics("""
+        public struct X : ISpanParsable<int>
+        {
+            public static int Parse(string s, IFormatProvider? p) => 0;
+            public static bool TryParse(string? s, IFormatProvider? p, out int r) { r = 0; return true; }
+            public static int Parse(ReadOnlySpan<char> s, IFormatProvider? p) => 0;
+            public static bool TryParse(ReadOnlySpan<char> s, IFormatProvider? p, out int r) { r = 0; return true; }
+        }
+        public class M { [CsvOrder(0)] public X A { get; set; } }
+        """, "CSVM003");
+
+    [Test]
+    public void UserSpanParsableType_NoDiagnostic() => AssertDiagnostics("""
+        public readonly record struct X(int V) : ISpanParsable<X>
+        {
+            public static X Parse(string s, IFormatProvider? p) => new(int.Parse(s, p));
+            public static bool TryParse(string? s, IFormatProvider? p, out X r) { var ok = int.TryParse(s, p, out var v); r = new(v); return ok; }
+            public static X Parse(ReadOnlySpan<char> s, IFormatProvider? p) => new(int.Parse(s, p));
+            public static bool TryParse(ReadOnlySpan<char> s, IFormatProvider? p, out X r) { var ok = int.TryParse(s, p, out var v); r = new(v); return ok; }
+        }
+        public class M { [CsvOrder(0)] public X A { get; set; } [CsvOrder(1)] public X? B { get; set; } }
+        """);
+
+    [Test]
+    public void IndexerAndStaticMembersIgnored() => AssertDiagnostics("""
+        public class M
+        {
+            [CsvOrder(0)] public int A { get; set; }
+            public int this[int i] => i;
+            public static int S { get; set; }
+            public static int F;
+        }
+        """);
+
+    [Test]
+    public void RequiredMemberSetByCtorWithoutSetsRequiredMembers_Compiles() => AssertDiagnostics("""
+        public class M
+        {
+            public M([CsvOrder(0)] int a) { A = a; }
+            public required int A { get; set; }
+        }
+        """);
+
+    [Test]
+    public void KeywordMemberAndParameterNames_Compile() => AssertDiagnostics("""
+        public class M
+        {
+            public M([CsvOrder(0)] int @class) { Class = @class; }
+            public int Class { get; }
+            [CsvOrder(1)] public string? @event { get; set; }
+            [CsvOrder(2)] public int @int;
+        }
+        """);
+
     [Test]
     public void UndefinedMemberType_NoGeneratorDiagnostic()
     {
