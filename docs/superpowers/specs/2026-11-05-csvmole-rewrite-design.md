@@ -109,7 +109,7 @@ public record Person(
   This replaces the current rule of "every public method that returns a value".
 - Supported signatures:
   - Returns `IEnumerable<T>` or `IAsyncEnumerable<T>`.
-  - First parameter: `TextReader`. `StringReader` callers still compile.
+  - First parameter: `TextReader` or a subclass (e.g. `StringReader`, `StreamReader`).
   - Optional `CsvOptions?` parameter.
   - Optional `CancellationToken` parameter (async only). The generator applies `[EnumeratorCancellation]` to it in the
     implementation, so both `ParseAsync(r, o, ct)` and `ParseAsync(r).WithCancellation(ct)` work.

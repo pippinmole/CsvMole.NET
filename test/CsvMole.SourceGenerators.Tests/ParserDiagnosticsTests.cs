@@ -107,6 +107,24 @@ public class ParserDiagnosticsTests
         public partial class P { public partial IEnumerable<Model> Parse(string text); }
         """, "CSVM002");
 
+    [TestCase("StringReader")]
+    [TestCase("StreamReader")]
+    public void FirstParamTextReaderSubclass_NoDiagnostics(string readerType) => AssertDiagnostics($$"""
+        [CsvParser]
+        public partial class P { public partial IEnumerable<Model> Parse({{readerType}} reader, CsvOptions? options = null); }
+        """);
+
+    [Test]
+    public void FirstParamNotTextReader_MessageMentionsDerivedTypes()
+    {
+        var (gen, _, _) = GeneratorHarness.Run(Usings + """
+            [CsvParser]
+            public partial class P { public partial IEnumerable<Model> Parse(object reader); }
+            """);
+        Assert.That(gen.Single().GetMessage(),
+            Does.Contain("the first parameter must be a System.IO.TextReader or a type derived from it"));
+    }
+
     [Test]
     public void ExtraUnknownParam_CSVM002() => AssertDiagnostics("""
         [CsvParser]
